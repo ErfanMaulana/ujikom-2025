@@ -14,7 +14,7 @@
 
 ---
 
-## 👨‍🎓 Biodata Peserta Ujikom
+##  Biodata Peserta
 
 | **Biodata** | **Keterangan** |
 |-------------|----------------|
