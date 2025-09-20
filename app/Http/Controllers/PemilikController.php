@@ -166,7 +166,7 @@ class PemilikController extends Controller
     public function editMotor($id)
     {
         $motor = Motor::where('owner_id', Auth::id())
-            ->where('status', '!=', 'rejected') // Tidak bisa edit yang ditolak
+            ->with('rentalRate')
             ->findOrFail($id);
 
         return view('pemilik.motor-edit', compact('motor'));
@@ -178,79 +178,89 @@ class PemilikController extends Controller
     public function updateMotor(Request $request, $id)
     {
         $motor = Motor::where('owner_id', Auth::id())
-            ->where('status', '!=', 'rejected')
             ->findOrFail($id);
 
         $request->validate([
-            'name' => 'required|string|max:255',
             'brand' => 'required|string|max:100',
-            'model' => 'required|string|max:100',
-            'year' => 'required|integer|min:2000|max:' . (date('Y') + 1),
-            'cc' => 'required|in:100,125,150',
-            'color' => 'required|string|max:50',
-            'plate_number' => 'required|string|max:15|unique:motors,plate_number,' . $motor->id,
+            'type_cc' => 'required|string|in:100cc,125cc,150cc,250cc,500cc',
+            'plate_number' => 'required|string|max:20|unique:motors,plate_number,' . $motor->id,
             'description' => 'nullable|string|max:1000',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'daily_rate' => 'required|string',
+            'weekly_rate' => 'nullable|string',
+            'monthly_rate' => 'nullable|string'
         ]);
 
-        $updateData = [
-            'name' => $request->name,
-            'brand' => $request->brand,
-            'model' => $request->model,
-            'year' => $request->year,
-            'cc' => $request->cc,
-            'color' => $request->color,
-            'plate_number' => $request->plate_number,
-            'description' => $request->description,
-        ];
+        // Convert string prices to integers
+        $dailyRate = (int) preg_replace('/[^0-9]/', '', $request->daily_rate);
+        $weeklyRate = $request->weekly_rate ? (int) preg_replace('/[^0-9]/', '', $request->weekly_rate) : ($dailyRate * 6);
+        $monthlyRate = $request->monthly_rate ? (int) preg_replace('/[^0-9]/', '', $request->monthly_rate) : ($dailyRate * 20);
 
-        // Upload gambar baru jika ada
-        if ($request->hasFile('image')) {
-            // Hapus gambar lama
-            if ($motor->image && file_exists(public_path('uploads/motors/' . $motor->image))) {
-                unlink(public_path('uploads/motors/' . $motor->image));
+        // Validate minimum rates
+        if ($dailyRate < 10000) {
+            return back()->withErrors(['daily_rate' => 'Tarif harian minimal Rp 10.000'])->withInput();
+        }
+
+        // Upload gambar jika ada
+        $photoPath = $motor->photo;
+        if ($request->hasFile('photo')) {
+            // Hapus foto lama jika ada
+            if ($motor->photo && Storage::disk('public')->exists($motor->photo)) {
+                Storage::disk('public')->delete($motor->photo);
             }
-
-            $file = $request->file('image');
-            $imageName = 'motor_' . time() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/motors'), $imageName);
-            $updateData['image'] = $imageName;
+            $photoPath = $request->file('photo')->store('motors', 'public');
         }
 
-        // Jika motor sudah diverifikasi, status kembali ke pending untuk review ulang
-        if ($motor->status === 'available') {
-            $updateData['status'] = 'pending';
-        }
+        // Update motor
+        $motor->update([
+            'brand' => $request->brand,
+            'type_cc' => $request->type_cc,
+            'plate_number' => strtoupper($request->plate_number),
+            'description' => $request->description,
+            'photo' => $photoPath,
+            'status' => 'pending_verification' // Reset status untuk verifikasi ulang
+        ]);
 
-        $motor->update($updateData);
+        // Update rental rate
+        $motor->rentalRate()->updateOrCreate(
+            ['motor_id' => $motor->id],
+            [
+                'daily_rate' => $dailyRate,
+                'weekly_rate' => $weeklyRate,
+                'monthly_rate' => $monthlyRate
+            ]
+        );
 
-        return redirect()->route('pemilik.motor.detail', $motor->id)
-            ->with('success', 'Motor berhasil diupdate.');
+        return redirect()->route('pemilik.motors')
+            ->with('success', 'Motor berhasil diperbarui! Menunggu verifikasi ulang dari admin.');
     }
 
     /**
-     * Hapus motor
+     * Delete motor
      */
     public function deleteMotor($id)
     {
         $motor = Motor::where('owner_id', Auth::id())
             ->findOrFail($id);
 
-        // Cek apakah ada booking aktif
+        // Cek apakah motor sedang disewa
         $activeBookings = $motor->bookings()
-            ->where('status', 'confirmed')
-            ->where('end_date', '>=', Carbon::now())
+            ->whereIn('status', ['confirmed', 'active'])
             ->count();
 
         if ($activeBookings > 0) {
-            return back()->with('error', 'Tidak dapat menghapus motor yang sedang disewa.');
+            return back()->withErrors(['error' => 'Motor tidak dapat dihapus karena sedang ada pesanan aktif.']);
         }
 
-        // Hapus gambar
-        if ($motor->image && file_exists(public_path('uploads/motors/' . $motor->image))) {
-            unlink(public_path('uploads/motors/' . $motor->image));
+        // Hapus foto jika ada
+        if ($motor->photo && Storage::disk('public')->exists($motor->photo)) {
+            Storage::disk('public')->delete($motor->photo);
         }
 
+        // Hapus rental rate
+        $motor->rentalRate()->delete();
+
+        // Hapus motor
         $motor->delete();
 
         return redirect()->route('pemilik.motors')

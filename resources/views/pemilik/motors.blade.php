@@ -56,7 +56,7 @@
                     @endif
                     
                     <!-- Status Badge -->
-                    <div class="position-absolute top-0 end-0 m-3">
+                    <div class="position-absolute top-0 start-0 m-3">
                         @if($motor->status === 'pending_verification')
                             <span class="badge bg-warning">Menunggu Verifikasi</span>
                         @elseif($motor->status === 'available')
@@ -67,13 +67,41 @@
                             <span class="badge bg-secondary">Maintenance</span>
                         @endif
                     </div>
+
+                    <!-- Action Menu -->
+                    <div class="position-absolute top-0 end-0 m-3">
+                        <div class="dropdown">
+                            <button class="btn btn-light btn-sm rounded-circle" type="button" 
+                                    id="motorAction{{ $motor->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="motorAction{{ $motor->id }}">
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('pemilik.motor.detail', $motor->id) }}">
+                                        <i class="bi bi-eye me-2"></i>Lihat Detail
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('pemilik.motor.edit', $motor->id) }}">
+                                        <i class="bi bi-pencil me-2"></i>Edit Motor
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item text-danger" onclick="deleteMotor({{ $motor->id }}, '{{ $motor->brand }} {{ $motor->plate_number }}')">
+                                        <i class="bi bi-trash me-2"></i>Hapus Motor
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Motor Info -->
                 <div class="card-body">
                     <h5 class="card-title">{{ $motor->brand }}</h5>
                     <p class="text-muted mb-2">
-                        <i class="bi bi-gear me-1"></i>{{ $motor->cc }}cc
+                        <i class="bi bi-gear me-1"></i>{{ $motor->type_cc }}
                         <span class="ms-3">
                             <i class="bi bi-credit-card me-1"></i>{{ $motor->plate_number }}
                         </span>
@@ -104,27 +132,19 @@
                             </div>
                         </div>
                     @endif
-
-                    <!-- Action Buttons -->
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ route('pemilik.motor.detail', $motor->id) }}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-eye me-1"></i>Detail
-                        </a>
-                        <div class="btn-group">
-                            <a href="{{ route('pemilik.motor.edit', $motor->id) }}" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteMotor({{ $motor->id }})">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Footer -->
-                <div class="card-footer bg-light text-muted small">
-                    <i class="bi bi-calendar me-1"></i>
-                    Didaftarkan {{ $motor->created_at->diffForHumans() }}
+                <div class="card-footer bg-light text-muted small d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="bi bi-calendar me-1"></i>
+                        Didaftarkan {{ $motor->created_at->diffForHumans() }}
+                    </span>
+                    @if($motor->status === 'available')
+                        <span class="text-success">
+                            <i class="bi bi-check-circle me-1"></i>Terverifikasi
+                        </span>
+                    @endif
                 </div>
             </div>
         </div>
@@ -156,7 +176,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                Apakah Anda yakin ingin menghapus motor ini? Tindakan ini tidak dapat dibatalkan.
+                <p>Apakah Anda yakin ingin menghapus motor <strong id="motorName"></strong>?</p>
+                <p class="text-muted">Tindakan ini tidak dapat dibatalkan.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -171,9 +192,12 @@
 </div>
 
 <script>
-function deleteMotor(motorId) {
+function deleteMotor(motorId, motorName) {
     const form = document.getElementById('deleteForm');
     form.action = `/pemilik/motors/${motorId}`;
+    
+    // Update motor name in modal
+    document.getElementById('motorName').textContent = motorName;
     
     const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
     modal.show();
