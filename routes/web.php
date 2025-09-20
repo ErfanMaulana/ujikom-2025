@@ -8,6 +8,20 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
+    // Jika user sudah login, redirect ke dashboard sesuai role
+    if (Auth::check()) {
+        $user = Auth::user();
+        
+        if ($user->role === 'admin') {
+            return redirect()->route('admin.dashboard');
+        } elseif ($user->role === 'pemilik') {
+            return redirect()->route('pemilik.dashboard');
+        } elseif ($user->role === 'penyewa') {
+            return redirect()->route('penyewa.dashboard');
+        }
+    }
+    
+    // Jika belum login, tampilkan halaman welcome
     return view('welcome');
 });
 
@@ -84,23 +98,23 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     
     // User management
     Route::get('/users', [AdminController::class, 'users'])->name('users');
-    Route::get('/users/{id}', [AdminController::class, 'userDetail'])->name('user.detail');
+    Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
+    Route::get('/users/{id}', [AdminController::class, 'showUser'])->name('users.show');
+    Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
     
     // Motor verification
     Route::get('/motors', [AdminController::class, 'motors'])->name('motors');
     Route::get('/motors/{id}', [AdminController::class, 'motorDetail'])->name('motor.detail');
-    Route::patch('/motors/{id}/verify', [AdminController::class, 'verifyMotor'])->name('motor.verify');
-    Route::patch('/motors/{id}/rate', [AdminController::class, 'updateRentalRate'])->name('motor.rate');
+    Route::patch('/motors/{motor}/verify', [AdminController::class, 'verifyMotor'])->name('motor.verify');
     
     // Booking management
     Route::get('/bookings', [AdminController::class, 'bookings'])->name('bookings');
-    Route::get('/bookings/{id}', [AdminController::class, 'bookingDetail'])->name('booking.detail');
-    Route::patch('/bookings/{id}/confirm', [AdminController::class, 'confirmBooking'])->name('booking.confirm');
-    Route::patch('/bookings/{id}/complete', [AdminController::class, 'completeBooking'])->name('booking.complete');
-    Route::patch('/bookings/{id}/cancel', [AdminController::class, 'cancelBooking'])->name('booking.cancel');
+    Route::get('/bookings/{id}', [AdminController::class, 'showBooking'])->name('bookings.show');
+    Route::patch('/bookings/{id}/status', [AdminController::class, 'updateBookingStatus'])->name('bookings.status');
     
-    // Reports
-    Route::get('/financial-report', [AdminController::class, 'financialReport'])->name('financial.report');
+    // Reports & Revenue Sharing
+    Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
+    Route::get('/financial-report', [AdminController::class, 'financialReport'])->name('financial-report');
     Route::get('/export-report', [AdminController::class, 'exportReport'])->name('export.report');
 });
 

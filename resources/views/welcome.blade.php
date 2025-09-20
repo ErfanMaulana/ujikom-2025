@@ -1,4 +1,4 @@
-@extends('layouts.main')
+@extends('layouts.welcome')
 
 @section('title', 'Rental Motor - Selamat Datang')
 
@@ -9,7 +9,7 @@
         <div class="col-12">
             <div class="bg-primary text-white text-center py-4 rounded">
                 <h1 class="display-5 fw-bold mb-2">
-                    <i class="bi bi-motorcycle me-2"></i>Rental Motor Ujikom 2025
+                    <i class="bi bi-motorcycle me-2"></i>FannRental
                 </h1>
                 <p class="lead mb-3">Platform terpercaya untuk menyewa dan menyewakan motor</p>
                 

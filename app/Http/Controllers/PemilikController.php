@@ -104,10 +104,20 @@ class PemilikController extends Controller
             'plate_number' => 'required|string|max:20|unique:motors',
             'description' => 'nullable|string|max:1000',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'daily_rate' => 'required|numeric|min:10000',
-            'weekly_rate' => 'nullable|numeric|min:50000',
-            'monthly_rate' => 'nullable|numeric|min:200000'
+            'daily_rate' => 'required|string',
+            'weekly_rate' => 'nullable|string',
+            'monthly_rate' => 'nullable|string'
         ]);
+
+        // Convert string prices to integers
+        $dailyRate = (int) preg_replace('/[^0-9]/', '', $request->daily_rate);
+        $weeklyRate = $request->weekly_rate ? (int) preg_replace('/[^0-9]/', '', $request->weekly_rate) : ($dailyRate * 6);
+        $monthlyRate = $request->monthly_rate ? (int) preg_replace('/[^0-9]/', '', $request->monthly_rate) : ($dailyRate * 20);
+
+        // Validate minimum rates
+        if ($dailyRate < 10000) {
+            return back()->withErrors(['daily_rate' => 'Tarif harian minimal Rp 10.000'])->withInput();
+        }
 
         // Upload gambar
         $photoPath = null;
@@ -129,9 +139,9 @@ class PemilikController extends Controller
         // Buat rental rate
         RentalRate::create([
             'motor_id' => $motor->id,
-            'daily_rate' => $request->daily_rate,
-            'weekly_rate' => $request->weekly_rate ?? ($request->daily_rate * 6),
-            'monthly_rate' => $request->monthly_rate ?? ($request->daily_rate * 20)
+            'daily_rate' => $dailyRate,
+            'weekly_rate' => $weeklyRate,
+            'monthly_rate' => $monthlyRate
         ]);
 
         return redirect()->route('pemilik.motors')

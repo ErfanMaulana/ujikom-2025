@@ -30,12 +30,7 @@
                             <option value="">Pilih Merk Motor</option>
                             <option value="Honda" {{ old('brand') == 'Honda' ? 'selected' : '' }}>Honda</option>
                             <option value="Yamaha" {{ old('brand') == 'Yamaha' ? 'selected' : '' }}>Yamaha</option>
-                            <option value="Suzuki" {{ old('brand') == 'Suzuki' ? 'selected' : '' }}>Suzuki</option>
                             <option value="Kawasaki" {{ old('brand') == 'Kawasaki' ? 'selected' : '' }}>Kawasaki</option>
-                            <option value="TVS" {{ old('brand') == 'TVS' ? 'selected' : '' }}>TVS</option>
-                            <option value="Viar" {{ old('brand') == 'Viar' ? 'selected' : '' }}>Viar</option>
-                            <option value="Benelli" {{ old('brand') == 'Benelli' ? 'selected' : '' }}>Benelli</option>
-                            <option value="KTM" {{ old('brand') == 'KTM' ? 'selected' : '' }}>KTM</option>
                         </select>
                         @error('brand')
                             <div class="invalid-feedback">{{ $message }}</div>
@@ -50,6 +45,8 @@
                             <option value="100cc" {{ old('type_cc') == '100cc' ? 'selected' : '' }}>100cc</option>
                             <option value="125cc" {{ old('type_cc') == '125cc' ? 'selected' : '' }}>125cc</option>
                             <option value="150cc" {{ old('type_cc') == '150cc' ? 'selected' : '' }}>150cc</option>
+                            <option value="250cc" {{ old('type_cc') == '250cc' ? 'selected' : '' }}>250cc</option>
+                            <option value="500cc" {{ old('type_cc') == '500cc' ? 'selected' : '' }}>500cc</option>
                         </select>
                         @error('type_cc')
                             <div class="invalid-feedback">{{ $message }}</div>
@@ -119,50 +116,50 @@
                                     <label for="daily_rate" class="form-label">Tarif Harian <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text">Rp</span>
-                                        <input type="number" 
-                                               class="form-control @error('daily_rate') is-invalid @enderror" 
+                                        <input type="text" 
+                                               class="form-control money-input @error('daily_rate') is-invalid @enderror" 
                                                id="daily_rate" 
                                                name="daily_rate" 
                                                value="{{ old('daily_rate') }}"
-                                               placeholder="50000"
-                                               min="10000"
+                                               placeholder="150000"
                                                required>
                                         @error('daily_rate')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
+                                    <div class="form-text">Ketik angka langsung, contoh: 150000</div>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label for="weekly_rate" class="form-label">Tarif Mingguan</label>
                                     <div class="input-group">
                                         <span class="input-group-text">Rp</span>
-                                        <input type="number" 
-                                               class="form-control @error('weekly_rate') is-invalid @enderror" 
+                                        <input type="text" 
+                                               class="form-control money-input @error('weekly_rate') is-invalid @enderror" 
                                                id="weekly_rate" 
                                                name="weekly_rate" 
                                                value="{{ old('weekly_rate') }}"
-                                               placeholder="300000"
-                                               min="50000">
+                                               placeholder="900000">
                                         @error('weekly_rate')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
+                                    <div class="form-text">Auto-calculate: 6x tarif harian</div>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label for="monthly_rate" class="form-label">Tarif Bulanan</label>
                                     <div class="input-group">
                                         <span class="input-group-text">Rp</span>
-                                        <input type="number" 
-                                               class="form-control @error('monthly_rate') is-invalid @enderror" 
+                                        <input type="text" 
+                                               class="form-control money-input @error('monthly_rate') is-invalid @enderror" 
                                                id="monthly_rate" 
                                                name="monthly_rate" 
                                                value="{{ old('monthly_rate') }}"
-                                               placeholder="1000000"
-                                               min="200000">
+                                               placeholder="3000000">
                                         @error('monthly_rate')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
+                                    <div class="form-text">Auto-calculate: 20x tarif harian</div>
                                 </div>
                             </div>
                             <div class="alert alert-info mt-3">
@@ -245,12 +242,31 @@ document.getElementById('photo').addEventListener('change', function(e) {
     }
 });
 
+// Format money input - only allow numbers
+document.querySelectorAll('.money-input').forEach(function(input) {
+    input.addEventListener('input', function(e) {
+        // Remove non-numeric characters
+        let value = e.target.value.replace(/[^0-9]/g, '');
+        e.target.value = value;
+    });
+    
+    input.addEventListener('keypress', function(e) {
+        // Only allow numbers
+        if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
+            e.preventDefault();
+        }
+    });
+});
+
 // Auto calculate weekly and monthly rates
 document.getElementById('daily_rate').addEventListener('input', function(e) {
-    const dailyRate = parseInt(e.target.value) || 0;
+    const dailyRate = parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0;
     if (dailyRate > 0) {
         document.getElementById('weekly_rate').value = dailyRate * 6;
         document.getElementById('monthly_rate').value = dailyRate * 20;
+    } else {
+        document.getElementById('weekly_rate').value = '';
+        document.getElementById('monthly_rate').value = '';
     }
 });
 </script>

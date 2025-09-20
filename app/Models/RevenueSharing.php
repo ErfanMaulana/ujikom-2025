@@ -11,9 +11,10 @@ class RevenueSharing extends Model
 
     protected $fillable = [
         'booking_id',
+        'owner_id',
         'total_amount',
-        'owner_share',
-        'admin_share',
+        'owner_amount',
+        'admin_commission',
         'owner_percentage',
         'admin_percentage',
         'settled_at',
@@ -22,8 +23,8 @@ class RevenueSharing extends Model
 
     protected $casts = [
         'total_amount' => 'decimal:2',
-        'owner_share' => 'decimal:2',
-        'admin_share' => 'decimal:2',
+        'owner_amount' => 'decimal:2',
+        'admin_commission' => 'decimal:2',
         'owner_percentage' => 'decimal:2',
         'admin_percentage' => 'decimal:2',
         'settled_at' => 'datetime',
@@ -35,10 +36,15 @@ class RevenueSharing extends Model
         return $this->belongsTo(Booking::class);
     }
 
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
     // Helper methods
     public function isSettled()
     {
-        return $this->status === 'settled';
+        return $this->status === 'paid';
     }
 
     public function isPending()
@@ -46,15 +52,15 @@ class RevenueSharing extends Model
         return $this->status === 'pending';
     }
 
-    public static function calculateShares($totalAmount, $ownerPercentage = 70.00)
+    public static function calculateShares($totalAmount, $ownerPercentage = 90.00)
     {
         $adminPercentage = 100.00 - $ownerPercentage;
-        $ownerShare = ($totalAmount * $ownerPercentage) / 100;
-        $adminShare = ($totalAmount * $adminPercentage) / 100;
+        $ownerAmount = ($totalAmount * $ownerPercentage) / 100;
+        $adminCommission = ($totalAmount * $adminPercentage) / 100;
 
         return [
-            'owner_share' => round($ownerShare, 2),
-            'admin_share' => round($adminShare, 2),
+            'owner_amount' => round($ownerAmount, 2),
+            'admin_commission' => round($adminCommission, 2),
             'owner_percentage' => $ownerPercentage,
             'admin_percentage' => $adminPercentage,
         ];

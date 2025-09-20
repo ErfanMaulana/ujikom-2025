@@ -50,8 +50,60 @@
                 <div class="text-success mb-2">
                     <i class="bi bi-currency-dollar" style="font-size: 2.5rem;"></i>
                 </div>
-                <h3 class="h4 fw-bold text-dark">Rp {{ number_format($totalRevenue, 0, ',', '.') }}</h3>
+                <h3 class="h4 fw-bold text-dark">Rp {{ number_format($totalRevenue ?? 0, 0, ',', '.') }}</h3>
                 <p class="text-muted mb-0">Total Pendapatan</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-2 mb-3">
+        <div class="card h-100 border-0 shadow-sm bg-light">
+            <div class="card-body text-center py-3">
+                <h4 class="fw-bold text-primary mb-1">{{ $totalPenyewa }}</h4>
+                <small class="text-muted">Penyewa</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card h-100 border-0 shadow-sm bg-light">
+            <div class="card-body text-center py-3">
+                <h4 class="fw-bold text-info mb-1">{{ $totalPemilik }}</h4>
+                <small class="text-muted">Pemilik</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card h-100 border-0 shadow-sm bg-light">
+            <div class="card-body text-center py-3">
+                <h4 class="fw-bold text-warning mb-1">{{ $pendingMotorsCount }}</h4>
+                <small class="text-muted">Perlu Verifikasi</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card h-100 border-0 shadow-sm bg-light">
+            <div class="card-body text-center py-3">
+                <h4 class="fw-bold text-success mb-1">{{ $availableMotors }}</h4>
+                <small class="text-muted">Motor Tersedia</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card h-100 border-0 shadow-sm bg-light">
+            <div class="card-body text-center py-3">
+                <h4 class="fw-bold text-primary mb-1">{{ $pendingBookings }}</h4>
+                <small class="text-muted">Booking Pending</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card h-100 border-0 shadow-sm bg-light">
+            <div class="card-body text-center py-3">
+                <h4 class="fw-bold text-success mb-1">{{ $confirmedBookings }}</h4>
+                <small class="text-muted">Booking Aktif</small>
             </div>
         </div>
     </div>
@@ -81,7 +133,6 @@
                                 <tr>
                                     <th>Motor</th>
                                     <th>Pemilik</th>
-                                    <th>CC</th>
                                     <th>Tanggal Daftar</th>
                                     <th>Aksi</th>
                                 </tr>
@@ -92,29 +143,26 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($motor->photo)
-                                                <img src="{{ Storage::url($motor->photo) }}" 
-                                                     alt="{{ $motor->brand }} {{ $motor->model }}" 
-                                                     class="rounded me-2" 
-                                                     style="width: 40px; height: 40px; object-fit: cover;">
+                                                <img src="{{ Storage::url($motor->photo) }}" alt="{{ $motor->brand }}" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
                                             @else
-                                                <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" 
-                                                     style="width: 40px; height: 40px;">
+                                                <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                                                     <i class="bi bi-motorcycle text-muted"></i>
                                                 </div>
                                             @endif
                                             <div>
-                                                <h6 class="mb-0">{{ $motor->brand }} {{ $motor->model }}</h6>
-                                                <small class="text-muted">{{ $motor->year }}</small>
+                                                <div class="fw-bold">{{ $motor->brand }}</div>
+                                                <small class="text-muted">{{ $motor->cc }}cc - {{ $motor->plate_number }}</small>
                                             </div>
                                         </div>
                                     </td>
-                                    <td>{{ $motor->owner->name }}</td>
-                                    <td>{{ $motor->cc }}cc</td>
+                                    <td>
+                                        <div class="fw-bold">{{ $motor->owner->name }}</div>
+                                        <small class="text-muted">{{ $motor->owner->email }}</small>
+                                    </td>
                                     <td>{{ $motor->created_at->format('d M Y') }}</td>
                                     <td>
-                                        <a href="{{ route('admin.motor.detail', $motor->id) }}" 
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="bi bi-eye"></i>
+                                        <a href="{{ route('admin.motor.detail', $motor->id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye me-1"></i>Review
                                         </a>
                                     </td>
                                 </tr>
@@ -125,17 +173,15 @@
                 @else
                     <div class="text-center py-4">
                         <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
-                        <h6 class="mt-3 text-muted">Tidak ada motor yang menunggu verifikasi</h6>
-                        <p class="text-muted">Semua motor telah diverifikasi</p>
+                        <p class="text-muted mt-2">Tidak ada motor yang menunggu verifikasi</p>
                     </div>
                 @endif
             </div>
         </div>
     </div>
 
-    <!-- Quick Actions and Recent Activities -->
+    <!-- Quick Actions -->
     <div class="col-lg-4 mb-4">
-        <!-- Quick Actions -->
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white py-3">
                 <h5 class="card-title mb-0">
@@ -149,66 +195,15 @@
                         <i class="bi bi-people me-2"></i>Kelola Pengguna
                     </a>
                     <a href="{{ route('admin.motors') }}" class="btn btn-outline-primary">
-                        <i class="bi bi-motorcycle me-2"></i>Verifikasi Motor
+                        <i class="bi bi-motorcycle me-2"></i>Kelola Motor
                     </a>
-                    <a href="{{ route('admin.bookings') }}" class="btn btn-outline-info">
-                        <i class="bi bi-calendar-check me-2"></i>Kelola Pemesanan
+                    <a href="{{ route('admin.bookings') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-calendar-check me-2"></i>Kelola Booking
                     </a>
-                    <a href="{{ route('admin.financial.report') }}" class="btn btn-outline-success">
-                        <i class="bi bi-graph-up me-2"></i>Laporan Keuangan
+                    <a href="{{ route('admin.financial-report') }}" class="btn btn-outline-success">
+                        <i class="bi bi-bar-chart me-2"></i>Laporan Keuangan
                     </a>
                 </div>
-            </div>
-        </div>
-
-        <!-- Recent Bookings -->
-        <div class="card border-0 shadow-sm mt-4">
-            <div class="card-header bg-white py-3">
-                <h6 class="card-title mb-0">
-                    <i class="bi bi-clock-history me-2"></i>
-                    Pemesanan Terbaru
-                </h6>
-            </div>
-            <div class="card-body">
-                @if($recentBookings->count() > 0)
-                    @foreach($recentBookings as $booking)
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="flex-shrink-0">
-                            @if($booking->motor->photo)
-                                <img src="{{ Storage::url($booking->motor->photo) }}" 
-                                     alt="{{ $booking->motor->brand }}" 
-                                     class="rounded" 
-                                     style="width: 40px; height: 40px; object-fit: cover;">
-                            @else
-                                <div class="bg-light rounded d-flex align-items-center justify-content-center" 
-                                     style="width: 40px; height: 40px;">
-                                    <i class="bi bi-motorcycle text-muted"></i>
-                                </div>
-                            @endif
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0">{{ $booking->motor->brand }} {{ $booking->motor->model }}</h6>
-                            <small class="text-muted">{{ $booking->user->name }} • {{ $booking->start_date->format('d M Y') }}</small>
-                        </div>
-                        <div class="flex-shrink-0">
-                            @if($booking->status === 'confirmed')
-                                <span class="badge bg-success">Dikonfirmasi</span>
-                            @elseif($booking->status === 'pending')
-                                <span class="badge bg-warning">Menunggu</span>
-                            @elseif($booking->status === 'completed')
-                                <span class="badge bg-info">Selesai</span>
-                            @else
-                                <span class="badge bg-secondary">{{ ucfirst($booking->status) }}</span>
-                            @endif
-                        </div>
-                    </div>
-                    @endforeach
-                @else
-                    <div class="text-center py-3">
-                        <i class="bi bi-calendar-x text-muted" style="font-size: 2rem;"></i>
-                        <p class="text-muted mb-0 mt-2">Belum ada pemesanan</p>
-                    </div>
-                @endif
             </div>
         </div>
 
@@ -223,7 +218,7 @@
             <div class="card-body">
                 <div class="row text-center">
                     <div class="col-6">
-                        <h6 class="text-primary">{{ $pendingVerifications }}</h6>
+                        <h6 class="text-primary">{{ $pendingMotorsCount }}</h6>
                         <small class="text-muted">Perlu Verifikasi</small>
                     </div>
                     <div class="col-6">
@@ -243,51 +238,76 @@
             <div class="card-header bg-white py-3">
                 <h5 class="card-title mb-0">
                     <i class="bi bi-bar-chart me-2"></i>
-                    Statistik Bulanan
+                    Statistik Pengguna
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row text-center">
                     <div class="col-4">
-                        <h4 class="text-primary">{{ $monthlyUsers }}</h4>
-                        <small class="text-muted">User Baru</small>
+                        <h4 class="text-primary">{{ $totalPenyewa + $totalPemilik }}</h4>
+                        <small class="text-muted">Total Users</small>
                     </div>
                     <div class="col-4">
-                        <h4 class="text-info">{{ $monthlyMotors }}</h4>
-                        <small class="text-muted">Motor Baru</small>
+                        <h4 class="text-warning">{{ $totalPemilik }}</h4>
+                        <small class="text-muted">Pemilik</small>
                     </div>
                     <div class="col-4">
-                        <h4 class="text-success">{{ $monthlyBookings }}</h4>
-                        <small class="text-muted">Pemesanan</small>
+                        <h4 class="text-info">{{ $totalPenyewa }}</h4>
+                        <small class="text-muted">Penyewa</small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
+    
     <div class="col-lg-6 mb-4">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white py-3">
                 <h5 class="card-title mb-0">
-                    <i class="bi bi-pie-chart me-2"></i>
-                    Distribusi Pengguna
+                    <i class="bi bi-graph-up me-2"></i>
+                    Aktivitas Terbaru
                 </h5>
             </div>
             <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-4">
-                        <h4 class="text-primary">{{ $userStats['admin'] ?? 0 }}</h4>
-                        <small class="text-muted">Admin</small>
+                @if($pendingBookingsList->count() > 0)
+                    @foreach($pendingBookingsList as $booking)
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0">
+                            @if($booking->motor->photo)
+                                <img src="{{ Storage::url($booking->motor->photo) }}" 
+                                     alt="{{ $booking->motor->brand }}" 
+                                     class="rounded" 
+                                     style="width: 40px; height: 40px; object-fit: cover;">
+                            @else
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center" 
+                                     style="width: 40px; height: 40px;">
+                                    <i class="bi bi-motorcycle text-muted"></i>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0">{{ $booking->motor->brand }}</h6>
+                            <small class="text-muted">{{ $booking->user->name }} • {{ $booking->created_at->format('d M Y') }}</small>
+                        </div>
+                        <div class="flex-shrink-0">
+                            @if($booking->status === 'confirmed')
+                                <span class="badge bg-success">Dikonfirmasi</span>
+                            @elseif($booking->status === 'pending')
+                                <span class="badge bg-warning">Menunggu</span>
+                            @elseif($booking->status === 'completed')
+                                <span class="badge bg-info">Selesai</span>
+                            @else
+                                <span class="badge bg-secondary">{{ ucfirst($booking->status) }}</span>
+                            @endif
+                        </div>
                     </div>
-                    <div class="col-4">
-                        <h4 class="text-warning">{{ $userStats['pemilik'] ?? 0 }}</h4>
-                        <small class="text-muted">Pemilik</small>
+                    @endforeach
+                @else
+                    <div class="text-center py-3">
+                        <i class="bi bi-calendar-x text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mb-0 mt-2">Belum ada aktivitas terbaru</p>
                     </div>
-                    <div class="col-4">
-                        <h4 class="text-info">{{ $userStats['penyewa'] ?? 0 }}</h4>
-                        <small class="text-muted">Penyewa</small>
-                    </div>
-                </div>
+                @endif
             </div>
         </div>
     </div>

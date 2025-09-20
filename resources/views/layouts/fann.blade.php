@@ -477,7 +477,7 @@
                     </a>
                 </div>
                 <div class="menu-item">
-                    <a href="{{ route('admin.financial.report') }}" class="menu-link {{ request()->routeIs('admin.financial*') ? 'active' : '' }}">
+                    <a href="{{ route('admin.financial-report') }}" class="menu-link {{ request()->routeIs('admin.financial*') ? 'active' : '' }}">
                         <i class="bi bi-bar-chart"></i>
                         Laporan Keuangan
                     </a>

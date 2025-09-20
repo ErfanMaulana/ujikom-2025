@@ -1,0 +1,557 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use App\Models\Motor;
+use App\Models\Booking;
+use App\Models\Payment;
+use App\Models\RentalRate;
+use App\Models\RevenueSharing;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Carbon\Carbon;
+
+class AdminController extends Controller
+{
+    // Middleware akan didefinisikan di routes
+
+    /**
+     * Dashboard untuk admin
+     */
+    public function dashboard()
+    {
+        // Statistik umum
+        $totalUsers = User::count();
+        $totalPenyewa = User::where('role', 'penyewa')->count();
+        $totalPemilik = User::where('role', 'pemilik')->count();
+        $totalMotors = Motor::count();
+        $pendingMotorsCount = Motor::where('status', 'pending_verification')->count();
+        $availableMotors = Motor::where('status', 'available')->count();
+        
+        $totalBookings = Booking::count();
+        $pendingBookings = Booking::where('status', 'pending')->count();
+        $confirmedBookings = Booking::where('status', 'confirmed')->count();
+        
+        $totalRevenue = Payment::where('status', 'paid')->sum('amount');
+        $adminRevenue = RevenueSharing::sum('admin_commission');
+
+        // Data untuk chart/grafik (contoh: bookings per bulan)
+        $monthlyBookings = Booking::selectRaw('MONTH(created_at) as month, COUNT(*) as count')
+            ->whereYear('created_at', date('Y'))
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        // Motor yang perlu verifikasi
+        $pendingMotors = Motor::where('status', 'pending_verification')
+            ->with(['owner', 'rentalRates'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Booking yang perlu konfirmasi
+        $pendingBookingsList = Booking::where('status', 'pending')
+            ->whereHas('payment', function($query) {
+                $query->where('status', 'paid');
+            })
+            ->with(['motor', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        return view('admin.dashboard', compact(
+            'totalUsers', 'totalPenyewa', 'totalPemilik',
+            'totalMotors', 'pendingMotorsCount', 'availableMotors',
+            'totalBookings', 'pendingBookings', 'confirmedBookings',
+            'totalRevenue', 'adminRevenue',
+            'monthlyBookings', 'pendingMotors', 'pendingBookingsList'
+        ));
+    }
+
+    /**
+     * Manajemen user
+     */
+    public function users(Request $request)
+    {
+        $query = User::query();
+
+        // Filter berdasarkan role
+        if ($request->has('role') && $request->role !== '') {
+            $query->where('role', $request->role);
+        }
+
+        // Search berdasarkan nama, email, atau phone
+        if ($request->has('search') && $request->search !== '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('created_at', 'desc')->paginate(15);
+
+        return view('admin.users.index', compact('users'));
+    }
+
+    /**
+     * Kelola Pemesanan
+     */
+    public function bookings(Request $request)
+    {
+        $query = Booking::with(['user', 'motor.owner']);
+
+        // Filter berdasarkan status
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+
+        // Filter berdasarkan tanggal
+        if ($request->has('date_from') && $request->date_from !== '') {
+            $query->whereDate('start_date', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to') && $request->date_to !== '') {
+            $query->whereDate('end_date', '<=', $request->date_to);
+        }
+
+        // Search berdasarkan berbagai field
+        if ($request->has('search') && $request->search !== '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('booking_code', 'like', "%{$search}%")
+                  ->orWhereHas('user', function($userQ) use ($search) {
+                      $userQ->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('motor', function($motorQ) use ($search) {
+                      $motorQ->where('brand', 'like', "%{$search}%")
+                             ->orWhere('model', 'like', "%{$search}%")
+                             ->orWhere('license_plate', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $bookings = $query->orderBy('created_at', 'desc')->paginate(15);
+
+        // Statistik untuk cards
+        $stats = [
+            'pending' => Booking::where('status', 'pending')->count(),
+            'confirmed' => Booking::where('status', 'confirmed')->count(),
+            'ongoing' => Booking::where('status', 'ongoing')->count(),
+            'completed' => Booking::where('status', 'completed')->count()
+        ];
+
+        return view('admin.bookings.index', compact('bookings', 'stats'));
+    }
+
+    /**
+     * Laporan Keuangan
+     */
+    public function reports(Request $request)
+    {
+        // Tentukan periode berdasarkan request
+        $period = $request->get('period', 'month');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        $query = Booking::with(['user', 'motor.owner'])->where('status', 'completed');
+
+        switch ($period) {
+            case 'today':
+                $query->whereDate('created_at', Carbon::today());
+                break;
+            case 'week':
+                $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+                break;
+            case 'month':
+                $query->whereMonth('created_at', Carbon::now()->month)
+                      ->whereYear('created_at', Carbon::now()->year);
+                break;
+            case 'year':
+                $query->whereYear('created_at', Carbon::now()->year);
+                break;
+            case 'custom':
+                if ($dateFrom && $dateTo) {
+                    $query->whereBetween('created_at', [$dateFrom, $dateTo]);
+                }
+                break;
+        }
+
+        $transactions = $query->orderBy('created_at', 'desc')->paginate(15);
+
+        // Ringkasan keuangan
+        $completedBookings = $query->get();
+        $totalRevenue = $completedBookings->sum('total_price');
+        $adminCommission = $totalRevenue * 0.1;
+        $ownerShare = $totalRevenue * 0.9;
+
+        $summary = [
+            'total_revenue' => $totalRevenue,
+            'admin_commission' => $adminCommission,
+            'owner_share' => $ownerShare,
+            'total_bookings' => $completedBookings->count()
+        ];
+
+        // Top Motors
+        $topMotors = Motor::withCount(['bookings' => function($query) use ($period, $dateFrom, $dateTo) {
+            $query->where('status', 'completed');
+            
+            switch ($period) {
+                case 'today':
+                    $query->whereDate('created_at', Carbon::today());
+                    break;
+                case 'week':
+                    $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+                    break;
+                case 'month':
+                    $query->whereMonth('created_at', Carbon::now()->month)
+                          ->whereYear('created_at', Carbon::now()->year);
+                    break;
+                case 'year':
+                    $query->whereYear('created_at', Carbon::now()->year);
+                    break;
+                case 'custom':
+                    if ($dateFrom && $dateTo) {
+                        $query->whereBetween('created_at', [$dateFrom, $dateTo]);
+                    }
+                    break;
+            }
+        }])
+        ->orderBy('bookings_count', 'desc')
+        ->limit(5)
+        ->get();
+
+        // Chart data untuk grafik
+        $chartData = $this->generateChartData($period, $dateFrom, $dateTo);
+
+        // Owner summary
+        $ownerSummary = User::where('role', 'pemilik')
+            ->withCount('motors')
+            ->with(['motors' => function($query) use ($period, $dateFrom, $dateTo) {
+                $query->withCount(['bookings' => function($bookingQuery) use ($period, $dateFrom, $dateTo) {
+                    $bookingQuery->where('status', 'completed');
+                    
+                    switch ($period) {
+                        case 'today':
+                            $bookingQuery->whereDate('created_at', Carbon::today());
+                            break;
+                        case 'week':
+                            $bookingQuery->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+                            break;
+                        case 'month':
+                            $bookingQuery->whereMonth('created_at', Carbon::now()->month)
+                                         ->whereYear('created_at', Carbon::now()->year);
+                            break;
+                        case 'year':
+                            $bookingQuery->whereYear('created_at', Carbon::now()->year);
+                            break;
+                        case 'custom':
+                            if ($dateFrom && $dateTo) {
+                                $bookingQuery->whereBetween('created_at', [$dateFrom, $dateTo]);
+                            }
+                            break;
+                    }
+                }]);
+            }])
+            ->get()
+            ->map(function($owner) {
+                $totalBookings = $owner->motors->sum('bookings_count');
+                $totalRevenue = $owner->motors->sum(function($motor) {
+                    return $motor->bookings->where('status', 'completed')->sum('total_price');
+                });
+                
+                return (object)[
+                    'name' => $owner->name,
+                    'phone' => $owner->phone,
+                    'motors_count' => $owner->motors_count,
+                    'bookings_count' => $totalBookings,
+                    'total_revenue' => $totalRevenue,
+                    'owner_share' => $totalRevenue * 0.9,
+                    'admin_commission' => $totalRevenue * 0.1
+                ];
+            });
+
+        return view('admin.reports.index', compact(
+            'transactions', 'summary', 'topMotors', 'chartData', 'ownerSummary'
+        ));
+    }
+
+    /**
+     * Generate chart data untuk grafik
+     */
+    private function generateChartData($period, $dateFrom = null, $dateTo = null)
+    {
+        $labels = [];
+        $revenue = [];
+        $commission = [];
+
+        if ($period === 'custom' && $dateFrom && $dateTo) {
+            $start = Carbon::parse($dateFrom);
+            $end = Carbon::parse($dateTo);
+            
+            while ($start <= $end) {
+                $labels[] = $start->format('d/m');
+                
+                $dayRevenue = Booking::where('status', 'completed')
+                    ->whereDate('created_at', $start->format('Y-m-d'))
+                    ->sum('total_price');
+                
+                $revenue[] = $dayRevenue;
+                $commission[] = $dayRevenue * 0.1;
+                
+                $start->addDay();
+            }
+        } else {
+            // Default untuk bulan ini
+            $start = Carbon::now()->startOfMonth();
+            $end = Carbon::now()->endOfMonth();
+            
+            while ($start <= $end) {
+                $labels[] = $start->format('d');
+                
+                $dayRevenue = Booking::where('status', 'completed')
+                    ->whereDate('created_at', $start->format('Y-m-d'))
+                    ->sum('total_price');
+                
+                $revenue[] = $dayRevenue;
+                $commission[] = $dayRevenue * 0.1;
+                
+                $start->addDay();
+            }
+        }
+
+        return [
+            'labels' => $labels,
+            'revenue' => $revenue,
+            'commission' => $commission
+        ];
+    }
+
+    /**
+     * Store user baru
+     */
+    public function storeUser(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'phone' => 'required|string|max:15',
+            'role' => 'required|in:admin,pemilik,penyewa',
+            'password' => 'required|string|min:8',
+        ]);
+
+        User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'role' => $request->role,
+            'password' => Hash::make($request->password),
+            'email_verified_at' => now(),
+        ]);
+
+        return redirect()->route('admin.users')->with('success', 'Pengguna berhasil ditambahkan');
+    }
+
+    /**
+     * Show user detail
+     */
+    public function showUser($id)
+    {
+        $user = User::findOrFail($id);
+        return response()->json($user);
+    }
+
+    /**
+     * Delete user
+     */
+    public function destroyUser(User $user)
+    {
+        if ($user->id === auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Tidak dapat menghapus akun sendiri'], 400);
+        }
+
+        $user->delete();
+        return response()->json(['success' => true, 'message' => 'Pengguna berhasil dihapus']);
+    }
+
+    /**
+     * Detail user
+     */
+    public function userDetail($id)
+    {
+        $user = User::findOrFail($id);
+
+        // Data terkait user berdasarkan role
+        $relatedData = [];
+        
+        if ($user->role === 'penyewa') {
+            $relatedData['bookings'] = Booking::where('user_id', $user->id)
+                ->with('motor')
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get();
+        } elseif ($user->role === 'pemilik') {
+            $relatedData['motors'] = Motor::where('owner_id', $user->id)
+                ->withCount('bookings')
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get();
+        }
+
+        return view('admin.user-detail', compact('user', 'relatedData'));
+    }
+
+    /**
+     * Verifikasi motor
+     */
+    public function motors(Request $request)
+    {
+        $query = Motor::with(['owner', 'rentalRates']);
+
+        // Filter berdasarkan status
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+
+        // Filter berdasarkan CC
+        if ($request->has('cc') && $request->cc !== '') {
+            $query->where('cc', $request->cc);
+        }
+
+        // Search berdasarkan brand atau plat nomor
+        if ($request->has('search') && $request->search !== '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('brand', 'like', "%{$search}%")
+                  ->orWhere('plate_number', 'like', "%{$search}%");
+            });
+        }
+
+        $motors = $query->orderBy('created_at', 'desc')->paginate(12);
+
+        // Stats untuk cards
+        $pendingCount = Motor::where('status', 'pending_verification')->count();
+        $verifiedCount = Motor::whereIn('status', ['available', 'rented', 'maintenance'])->count();
+
+        return view('admin.motors', compact('motors', 'pendingCount', 'verifiedCount'));
+    }
+
+    /**
+     * Detail motor untuk verifikasi
+     */
+    public function motorDetail($id)
+    {
+        $motor = Motor::with(['owner', 'rentalRates', 'bookings.user'])
+            ->findOrFail($id);
+
+        return view('admin.motor-detail', compact('motor'));
+    }
+
+    /**
+     * Verifikasi motor - approve
+     */
+    public function verifyMotor(Motor $motor)
+    {
+        $motor->update([
+            'status' => 'available',
+            'verified_by' => Auth::id(),
+            'verified_at' => Carbon::now()
+        ]);
+        
+        return redirect()->back()->with('success', 'Motor berhasil diverifikasi dan sekarang tersedia untuk disewa.');
+    }
+
+    /**
+     * Show booking detail
+     */
+    public function showBooking($id)
+    {
+        $booking = Booking::with(['user', 'motor.owner'])->findOrFail($id);
+        return response()->json($booking);
+    }
+
+    /**
+     * Update booking status
+     */
+    public function updateBookingStatus(Request $request, $id)
+    {
+        $booking = Booking::findOrFail($id);
+        
+        $request->validate([
+            'status' => 'required|in:pending,confirmed,ongoing,completed,cancelled'
+        ]);
+
+        $booking->update(['status' => $request->status]);
+
+        // Update motor status jika perlu
+        if ($request->status === 'ongoing') {
+            $booking->motor->update(['status' => 'rented']);
+        } elseif (in_array($request->status, ['completed', 'cancelled'])) {
+            $booking->motor->update(['status' => 'available']);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Status pemesanan berhasil diupdate']);
+    }
+
+    /**
+     * Store user baru
+     */
+    public function storeUser(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'phone' => 'required|string|max:15',
+            'role' => 'required|in:admin,pemilik,penyewa',
+            'password' => 'required|string|min:8',
+        ]);
+
+        User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'role' => $request->role,
+            'password' => Hash::make($request->password),
+            'email_verified_at' => now(),
+        ]);
+
+        return redirect()->route('admin.users')->with('success', 'Pengguna berhasil ditambahkan');
+    }
+
+
+
+    /**
+     * Show booking detail
+     */
+    public function showBooking($id)
+    {
+        $booking = Booking::with(['user', 'motor.owner'])->findOrFail($id);
+        return response()->json($booking);
+    }
+
+    /**
+     * Update booking status
+     */
+    public function updateBookingStatus(Request $request, $id)
+    {
+        $booking = Booking::findOrFail($id);
+        
+        $request->validate([
+            'status' => 'required|in:pending,confirmed,ongoing,completed,cancelled'
+        ]);
+
+        $booking->update(['status' => $request->status]);
+
+        // Update motor status jika perlu
+        if ($request->status === 'ongoing') {
+            $booking->motor->update(['status' => 'rented']);
+        } elseif (in_array($request->status, ['completed', 'cancelled'])) {
+            $booking->motor->update(['status' => 'available']);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Status pemesanan berhasil diupdate']);
+    }
+}
