@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             MotorSeeder::class,
-            // BookingSeeder::class, // Skip dulu karena perlu penyesuaian
+            BookingSeeder::class, // Enable to create sample revenue data
         ]);
     }
 }

@@ -12,7 +12,6 @@ class Motor extends Model
     protected $fillable = [
         'owner_id',
         'brand',
-        'cc',
         'type_cc',
         'plate_number',
         'status',

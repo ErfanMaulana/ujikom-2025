@@ -287,7 +287,7 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h6 class="mb-0">{{ $booking->motor->brand }}</h6>
-                            <small class="text-muted">{{ $booking->user->name }} • {{ $booking->created_at->format('d M Y') }}</small>
+                            <small class="text-muted">{{ $booking->renter->name }} • {{ $booking->created_at->format('d M Y') }}</small>
                         </div>
                         <div class="flex-shrink-0">
                             @if($booking->status === 'confirmed')

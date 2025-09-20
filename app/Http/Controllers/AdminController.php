@@ -22,7 +22,7 @@ class AdminController extends Controller
         $totalRevenue = Booking::where('status', 'completed')->sum('price');
         $pendingMotorsCount = Motor::where('status', 'pending_verification')->count();
         $pendingMotors = Motor::where('status', 'pending_verification')->with('owner')->latest()->take(5)->get();
-        $pendingBookingsList = Booking::where('status', 'pending')->with(['user', 'motor'])->latest()->take(5)->get();
+        $pendingBookingsList = Booking::where('status', 'pending')->with(['renter', 'motor'])->latest()->take(5)->get();
         $availableMotors = Motor::where('status', 'available')->count();
         $pendingBookings = Booking::where('status', 'pending')->count();
         $confirmedBookings = Booking::where('status', 'confirmed')->count();
@@ -96,7 +96,7 @@ class AdminController extends Controller
 
     public function bookings(Request $request)
     {
-        $query = Booking::with(['user', 'motor']);
+        $query = Booking::with(['renter', 'motor']);
 
         if ($request->has('status') && $request->status !== '') {
             $query->where('status', $request->status);
@@ -126,7 +126,7 @@ class AdminController extends Controller
 
     public function showBooking($id)
     {
-        $booking = Booking::with(['user', 'motor'])->findOrFail($id);
+        $booking = Booking::with(['renter', 'motor'])->findOrFail($id);
         return response()->json($booking);
     }
 
@@ -145,7 +145,7 @@ class AdminController extends Controller
 
     public function reports(Request $request)
     {
-        $query = Booking::with(['user', 'motor'])->where('status', 'completed');
+        $query = Booking::with(['renter', 'motor'])->where('status', 'completed');
 
         $transactions = $query->orderBy('created_at', 'desc')->paginate(15);
 
@@ -157,7 +157,7 @@ class AdminController extends Controller
         $summary = [
             'total_revenue' => $totalRevenue,
             'admin_commission' => $adminCommission,
-            'owner_share' => $ownerShare,
+            'owner_amount' => $ownerShare,
             'total_bookings' => $completedBookings->count()
         ];
 
@@ -194,7 +194,7 @@ class AdminController extends Controller
 
     public function financialReport(Request $request)
     {
-        $query = Booking::with(['user', 'motor'])->where('status', 'completed');
+        $query = Booking::with(['renter', 'motor'])->where('status', 'completed');
 
         // Filter berdasarkan tanggal jika ada
         if ($request->filled('date_from')) {
@@ -215,7 +215,7 @@ class AdminController extends Controller
         $summary = [
             'total_revenue' => $totalRevenue,
             'admin_commission' => $adminCommission,
-            'owner_share' => $ownerShare,
+            'owner_amount' => $ownerShare,
             'total_bookings' => $completedBookings->count()
         ];
 

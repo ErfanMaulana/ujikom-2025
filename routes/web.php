@@ -86,6 +86,11 @@ Route::middleware(['auth', 'role:pemilik'])->prefix('pemilik')->name('pemilik.')
     // Booking routes
     Route::get('/bookings', [PemilikController::class, 'bookings'])->name('bookings');
     Route::get('/bookings/{id}', [PemilikController::class, 'bookingDetail'])->name('booking.detail');
+    Route::get('/booking/{id}/detail', [PemilikController::class, 'getBookingDetail'])->name('booking.detail.ajax');
+    Route::post('/booking/{id}/confirm', [PemilikController::class, 'confirmBooking'])->name('booking.confirm');
+    Route::post('/booking/{id}/cancel', [PemilikController::class, 'cancelBooking'])->name('booking.cancel');
+    Route::post('/booking/{id}/activate', [PemilikController::class, 'activateBooking'])->name('booking.activate');
+    Route::post('/booking/{id}/complete', [PemilikController::class, 'completeBooking'])->name('booking.complete');
     
     // Revenue routes
     Route::get('/revenue-report', [PemilikController::class, 'revenueReport'])->name('revenue.report');

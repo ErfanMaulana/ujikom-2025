@@ -144,12 +144,12 @@
                                         <small class="text-muted">{{ $booking->created_at->format('d/m/Y H:i') }}</small>
                                     </td>
                                     <td>
-                                        <strong>{{ $booking->user->name }}</strong><br>
-                                        <small class="text-muted">{{ $booking->user->phone }}</small>
+                                        <strong>{{ $booking->renter->name }}</strong><br>
+                                        <small class="text-muted">{{ $booking->renter->phone }}</small>
                                     </td>
                                     <td>
                                         <strong>{{ $booking->motor->brand }} {{ $booking->motor->model }}</strong><br>
-                                        <small class="text-muted">{{ $booking->motor->license_plate }} - {{ $booking->motor->cc }}cc</small>
+                                        <small class="text-muted">{{ $booking->motor->plate_number }} - {{ $booking->motor->cc }}cc</small>
                                     </td>
                                     <td>
                                         <strong>{{ \Carbon\Carbon::parse($booking->start_date)->format('d/m/Y') }}</strong><br>
@@ -247,13 +247,13 @@ function viewBooking(bookingId) {
                 <div class="row">
                     <div class="col-md-6">
                         <h6>Informasi Penyewa</h6>
-                        <p><strong>Nama:</strong> ${data.user.name}</p>
-                        <p><strong>Email:</strong> ${data.user.email}</p>
-                        <p><strong>Telepon:</strong> ${data.user.phone}</p>
+                        <p><strong>Nama:</strong> ${data.renter.name}</p>
+                        <p><strong>Email:</strong> ${data.renter.email}</p>
+                        <p><strong>Telepon:</strong> ${data.renter.phone}</p>
                         
                         <h6 class="mt-4">Informasi Motor</h6>
                         <p><strong>Motor:</strong> ${data.motor.brand} ${data.motor.model}</p>
-                        <p><strong>Plat Nomor:</strong> ${data.motor.license_plate}</p>
+                        <p><strong>Plat Nomor:</strong> ${data.motor.plate_number}</p>
                         <p><strong>CC:</strong> ${data.motor.cc}cc</p>
                         <p><strong>Harga/Hari:</strong> Rp ${new Intl.NumberFormat('id-ID').format(data.motor.price_per_day)}</p>
                     </div>

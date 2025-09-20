@@ -39,7 +39,7 @@ class PemilikController extends Controller
         $totalRevenue = RevenueSharing::whereHas('booking.motor', function($query) use ($user) {
                 $query->where('owner_id', $user->id);
             })
-            ->sum('owner_share');
+            ->sum('owner_amount');
 
         // Motor terbaru
         $recentMotors = Motor::where('owner_id', $user->id)
@@ -100,7 +100,7 @@ class PemilikController extends Controller
     {
         $request->validate([
             'brand' => 'required|string|max:100',
-            'cc' => 'required|integer|min:50',
+            'type_cc' => 'required|string|in:100cc,125cc,150cc,250cc,500cc',
             'plate_number' => 'required|string|max:20|unique:motors',
             'description' => 'nullable|string|max:1000',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -129,7 +129,7 @@ class PemilikController extends Controller
         $motor = Motor::create([
             'owner_id' => Auth::id(),
             'brand' => $request->brand,
-            'cc' => $request->cc,
+            'type_cc' => $request->type_cc,
             'plate_number' => strtoupper($request->plate_number),
             'description' => $request->description,
             'photo' => $photoPath,
@@ -264,7 +264,7 @@ class PemilikController extends Controller
     {
         $query = Booking::whereHas('motor', function($q) {
             $q->where('owner_id', Auth::id());
-        })->with(['motor', 'user', 'payment']);
+        })->with(['motor', 'renter', 'payment']);
 
         // Filter berdasarkan status
         if ($request->has('status') && $request->status !== '') {
@@ -295,24 +295,30 @@ class PemilikController extends Controller
      */
     public function revenueReport(Request $request)
     {
-        $query = RevenueSharing::whereHas('booking.motor', function($q) {
-                $q->where('owner_id', Auth::id());
-            })
-            ->with(['booking.motor', 'booking.user']);
+        // Base query for total calculation
+        $totalQuery = RevenueSharing::whereHas('booking.motor', function($q) {
+            $q->where('owner_id', Auth::id());
+        });
 
-        // Filter berdasarkan bulan/tahun
+        // Base query for paginated results
+        $paginatedQuery = RevenueSharing::whereHas('booking.motor', function($q) {
+            $q->where('owner_id', Auth::id());
+        })->with(['booking.motor', 'booking.renter']);
+
+        // Apply filters to both queries
         if ($request->has('month') && $request->month !== '') {
-            $query->whereMonth('created_at', $request->month);
+            $totalQuery->whereMonth('created_at', $request->month);
+            $paginatedQuery->whereMonth('created_at', $request->month);
         }
 
         if ($request->has('year') && $request->year !== '') {
-            $query->whereYear('created_at', $request->year);
+            $totalQuery->whereYear('created_at', $request->year);
+            $paginatedQuery->whereYear('created_at', $request->year);
         }
 
-        $revenues = $query->orderBy('created_at', 'desc')->paginate(10);
-
-        // Total pendapatan
-        $totalRevenue = $query->sum('owner_share');
+        // Get results
+        $totalRevenue = $totalQuery->sum('owner_amount');
+        $revenues = $paginatedQuery->orderBy('created_at', 'desc')->paginate(10);
 
         return view('pemilik.revenue-report', compact('revenues', 'totalRevenue'));
     }
@@ -325,5 +331,159 @@ class PemilikController extends Controller
         // Implementation untuk download PDF/Excel
         // Akan diimplementasi jika diperlukan
         return back()->with('info', 'Fitur download sedang dalam pengembangan.');
+    }
+
+    /**
+     * Get booking detail for AJAX call
+     */
+    public function getBookingDetail($id)
+    {
+        $booking = Booking::with(['motor', 'renter', 'payment'])
+            ->whereHas('motor', function($q) {
+                $q->where('owner_id', Auth::id());
+            })
+            ->findOrFail($id);
+
+        return view('pemilik.booking-detail', compact('booking'));
+    }
+
+    /**
+     * Confirm booking
+     */
+    public function confirmBooking($id)
+    {
+        try {
+            $booking = Booking::whereHas('motor', function($q) {
+                $q->where('owner_id', Auth::id());
+            })->findOrFail($id);
+
+            if ($booking->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking tidak dapat dikonfirmasi karena status sudah berubah.'
+                ]);
+            }
+
+            $booking->update(['status' => 'confirmed']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Booking berhasil dikonfirmasi.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Cancel booking
+     */
+    public function cancelBooking(Request $request, $id)
+    {
+        try {
+            $booking = Booking::whereHas('motor', function($q) {
+                $q->where('owner_id', Auth::id());
+            })->findOrFail($id);
+
+            if ($booking->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking tidak dapat dibatalkan karena status sudah berubah.'
+                ]);
+            }
+
+            $booking->update([
+                'status' => 'cancelled',
+                'notes' => $request->reason ?? 'Dibatalkan oleh pemilik motor'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Booking berhasil dibatalkan.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Activate booking
+     */
+    public function activateBooking($id)
+    {
+        try {
+            $booking = Booking::whereHas('motor', function($q) {
+                $q->where('owner_id', Auth::id());
+            })->findOrFail($id);
+
+            if ($booking->status !== 'confirmed') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking harus dikonfirmasi terlebih dahulu sebelum diaktifkan.'
+                ]);
+            }
+
+            $booking->update(['status' => 'active']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Masa sewa berhasil dimulai.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Complete booking
+     */
+    public function completeBooking($id)
+    {
+        try {
+            $booking = Booking::with('motor')->whereHas('motor', function($q) {
+                $q->where('owner_id', Auth::id());
+            })->findOrFail($id);
+
+            if ($booking->status !== 'active') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking harus dalam status aktif untuk dapat diselesaikan.'
+                ]);
+            }
+
+            $booking->update(['status' => 'completed']);
+
+            // Create revenue sharing record
+            $totalAmount = $booking->price;
+            $ownerAmount = $totalAmount * 0.9; // 90% untuk pemilik
+            $adminCommission = $totalAmount * 0.1; // 10% untuk admin
+
+            RevenueSharing::create([
+                'booking_id' => $booking->id,
+                'owner_id' => $booking->motor->owner_id,
+                'total_amount' => $totalAmount,
+                'owner_amount' => $ownerAmount,
+                'admin_commission' => $adminCommission
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Masa sewa berhasil diselesaikan.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ]);
+        }
     }
 }

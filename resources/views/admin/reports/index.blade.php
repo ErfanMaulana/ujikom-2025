@@ -95,7 +95,7 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h4>Rp {{ number_format($summary['owner_share'] ?? 0, 0, ',', '.') }}</h4>
+                                    <h4>Rp {{ number_format($summary['owner_amount'] ?? 0, 0, ',', '.') }}</h4>
                                     <p class="mb-0">Bagian Pemilik (90%)</p>
                                 </div>
                                 <i class="bi bi-person-check fs-1"></i>
@@ -140,7 +140,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <div>
                                     <strong>{{ $motor->brand }} {{ $motor->model }}</strong><br>
-                                    <small class="text-muted">{{ $motor->license_plate }}</small>
+                                    <small class="text-muted">{{ $motor->plate_number }}</small>
                                 </div>
                                 <span class="badge bg-primary">{{ $motor->bookings_count }} sewa</span>
                             </div>
@@ -181,12 +181,12 @@
                                         <strong>{{ $transaction->booking_code }}</strong>
                                     </td>
                                     <td>
-                                        {{ $transaction->user->name }}<br>
-                                        <small class="text-muted">{{ $transaction->user->phone }}</small>
+                                        {{ $transaction->renter->name }}<br>
+                                        <small class="text-muted">{{ $transaction->renter->phone }}</small>
                                     </td>
                                     <td>
                                         {{ $transaction->motor->brand }} {{ $transaction->motor->model }}<br>
-                                        <small class="text-muted">{{ $transaction->motor->license_plate }}</small>
+                                        <small class="text-muted">{{ $transaction->motor->plate_number }}</small>
                                     </td>
                                     <td>
                                         {{ $transaction->motor->owner->name }}<br>
@@ -267,7 +267,7 @@
                                     </td>
                                     <td>
                                         <span class="text-primary">
-                                            Rp {{ number_format($owner->owner_share, 0, ',', '.') }}
+                                            Rp {{ number_format($owner->owner_amount, 0, ',', '.') }}
                                         </span>
                                     </td>
                                     <td>
