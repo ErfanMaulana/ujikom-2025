@@ -3,11 +3,16 @@
 @section('title', 'Daftar Motor - Penyewa')
 
 @section('content')
-<div class="container-fluid px-4">
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <div>
+<!-- Content Header -->
+<div class="content-header">
+    <h1>
+        <i class="bi bi-motorcycle me-3"></i>Daftar Motor
+    </h1>
+    <p>Pilih motor yang ingin Anda sewa</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
                     <h1 class="h2 mb-0">
                         <i class="bi bi-motorcycle me-3"></i>Daftar Motor Tersedia
                     </h1>
@@ -158,7 +163,6 @@
                     {{ $motors->links() }}
                 </div>
             @endif
-        </div>
     </div>
 </div>
 

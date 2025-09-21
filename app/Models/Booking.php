@@ -13,6 +13,8 @@ class Booking extends Model
     protected $fillable = [
         'renter_id',
         'motor_id',
+        'package_type',
+        'duration_days',
         'start_date',
         'end_date',
         'duration_type',

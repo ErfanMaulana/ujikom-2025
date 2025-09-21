@@ -155,7 +155,7 @@
                                 <i class="bi bi-eye me-1"></i>Detail
                             </button>
                             @if($motor->status === 'pending_verification')
-                                <button type="button" class="btn btn-sm btn-success" onclick="verifyMotor({{ $motor->id }})">
+                                <button type="button" class="btn btn-sm btn-success" onclick="directVerifyMotor({{ $motor->id }})">
                                     <i class="bi bi-check-circle me-1"></i>Verifikasi
                                 </button>
                             @endif
@@ -482,10 +482,39 @@ function showMotorDetail(motorId) {
 
 function verifyMotor(motorId) {
     const form = document.getElementById('verifyForm');
-    form.action = `/admin/motors/${motorId}/verify`;
+    // Use Laravel route helper properly 
+    form.action = '{{ url("admin/motors") }}/' + motorId + '/verify';
     
     const modal = new bootstrap.Modal(document.getElementById('verifyModal'));
     modal.show();
+}
+
+// Alternative: Direct verification without modal
+function directVerifyMotor(motorId) {
+    if (confirm('Apakah Anda yakin ingin memverifikasi motor ini?')) {
+        // Create form and submit directly
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url("admin/motors") }}/' + motorId + '/verify';
+        
+        // Add CSRF token
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = '_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        form.appendChild(csrfToken);
+        
+        // Add method override for PATCH
+        const methodField = document.createElement('input');
+        methodField.type = 'hidden';
+        methodField.name = '_method';
+        methodField.value = 'PATCH';
+        form.appendChild(methodField);
+        
+        // Submit form
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 </script>
 @endsection

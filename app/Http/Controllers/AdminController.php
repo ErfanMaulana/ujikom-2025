@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Motor;
 use App\Models\Booking;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -105,9 +106,13 @@ class AdminController extends Controller
         if ($request->has('search') && $request->search !== '') {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('booking_code', 'like', "%{$search}%")
-                  ->orWhereHas('user', function($userQ) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhereHas('renter', function($userQ) use ($search) {
                       $userQ->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('motor', function($motorQ) use ($search) {
+                      $motorQ->where('brand', 'like', "%{$search}%")
+                             ->orWhere('plate_number', 'like', "%{$search}%");
                   });
             });
         }
@@ -280,5 +285,44 @@ class AdminController extends Controller
         ];
 
         return view('admin.reports.index', compact('transactions', 'summary', 'chartData'));
+    }
+
+    /**
+     * Get notifications for admin
+     */
+    public function getNotifications()
+    {
+        $notifications = Notification::where('user_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get();
+
+        return response()->json([
+            'notifications' => $notifications,
+            'unread_count' => $notifications->where('read_at', null)->count()
+        ]);
+    }
+
+    /**
+     * Mark notification as read
+     */
+    public function markNotificationAsRead($id)
+    {
+        $notification = Notification::where('user_id', Auth::id())->findOrFail($id);
+        $notification->markAsRead();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Mark all notifications as read
+     */
+    public function markAllNotificationsAsRead()
+    {
+        Notification::where('user_id', Auth::id())
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return response()->json(['success' => true]);
     }
 }

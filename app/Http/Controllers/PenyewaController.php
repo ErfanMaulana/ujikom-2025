@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Motor;
 use App\Models\Booking;
 use App\Models\RentalRate;
+use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -132,6 +134,7 @@ class PenyewaController extends Controller
             'motor_id' => 'required|exists:motors,id',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after:start_date',
+            'package_type' => 'required|in:daily,weekly,monthly',
             'notes' => 'nullable|string|max:500'
         ]);
 
@@ -159,16 +162,34 @@ class PenyewaController extends Controller
             return back()->with('error', 'Motor sudah dibooking pada tanggal tersebut.');
         }
 
-        // Hitung total hari dan total harga
+        // Hitung total hari dan total harga berdasarkan paket
         $startDate = Carbon::parse($request->start_date);
         $endDate = Carbon::parse($request->end_date);
         $totalDays = $startDate->diffInDays($endDate) + 1; // +1 karena include kedua tanggal
-        $totalAmount = $totalDays * $rentalRate->daily_rate;
+        
+        // Hitung paket duration dan discount
+        $packageDurations = [
+            'daily' => 1,
+            'weekly' => 7,
+            'monthly' => 30
+        ];
+        
+        $packageDiscounts = [
+            'daily' => 1,        // No discount
+            'weekly' => 0.9,     // 10% discount
+            'monthly' => 0.8     // 20% discount
+        ];
+        
+        $durationDays = $packageDurations[$request->package_type];
+        $discount = $packageDiscounts[$request->package_type];
+        $totalAmount = $rentalRate->daily_rate * $totalDays * $discount;
 
         // Buat booking
         $booking = Booking::create([
             'renter_id' => Auth::id(),
             'motor_id' => $request->motor_id,
+            'package_type' => $request->package_type,
+            'duration_days' => $totalDays,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'duration_type' => 'daily',
@@ -177,7 +198,29 @@ class PenyewaController extends Controller
             'notes' => $request->notes
         ]);
 
-        return redirect()->route('penyewa.payment.form', $booking->id)
+        // Buat notifikasi untuk admin
+        $admins = User::where('role', 'admin')->get();
+        $packageNames = [
+            'daily' => 'Harian',
+            'weekly' => 'Mingguan',
+            'monthly' => 'Bulanan'
+        ];
+        
+        foreach ($admins as $admin) {
+            Notification::create([
+                'user_id' => $admin->id,
+                'type' => 'booking_created',
+                'title' => 'Pemesanan Motor Baru',
+                'message' => 'Pemesanan paket ' . $packageNames[$request->package_type] . ' untuk motor ' . $motor->brand . ' ' . $motor->model . ' oleh ' . Auth::user()->name,
+                'data' => [
+                    'booking_id' => $booking->id,
+                    'motor_id' => $motor->id,
+                    'renter_id' => Auth::id()
+                ]
+            ]);
+        }
+
+        return redirect()->route('penyewa.bookings')
             ->with('success', 'Booking berhasil dibuat. Silakan lakukan pembayaran.');
     }
 
@@ -204,6 +247,20 @@ class PenyewaController extends Controller
             ->findOrFail($id);
 
         return view('penyewa.booking-detail', compact('booking'));
+    }
+
+    /**
+     * Get booking detail via AJAX
+     */
+    public function getBookingDetailAjax($id)
+    {
+        $booking = Booking::where('renter_id', Auth::id())
+            ->with(['motor', 'motor.rentalRate'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'booking' => $booking
+        ]);
     }
 
     /**
@@ -285,5 +342,40 @@ class PenyewaController extends Controller
         ->paginate(10);
 
         return view('penyewa.payment-history', compact('payments'));
+    }
+
+    /**
+     * Get payment detail for AJAX
+     */
+    public function getPaymentDetailAjax($id)
+    {
+        $payment = \App\Models\Payment::whereHas('booking', function($query) {
+            $query->where('renter_id', Auth::id());
+        })
+        ->with(['booking', 'booking.motor'])
+        ->findOrFail($id);
+
+        return response()->json([
+            'payment' => $payment
+        ]);
+    }
+
+    /**
+     * Generate payment invoice
+     */
+    public function paymentInvoice($id)
+    {
+        $payment = \App\Models\Payment::whereHas('booking', function($query) {
+            $query->where('renter_id', Auth::id());
+        })
+        ->with(['booking', 'booking.motor', 'booking.motor.owner'])
+        ->findOrFail($id);
+
+        if ($payment->status !== 'paid') {
+            return redirect()->route('penyewa.payment.history')
+                ->with('error', 'Invoice hanya tersedia untuk pembayaran yang sudah lunas.');
+        }
+
+        return view('penyewa.payment-invoice', compact('payment'));
     }
 }

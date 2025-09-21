@@ -63,12 +63,15 @@ Route::middleware(['auth', 'role:penyewa'])->prefix('penyewa')->name('penyewa.')
     Route::post('/booking', [PenyewaController::class, 'processBooking'])->name('booking.store');
     Route::get('/bookings', [PenyewaController::class, 'bookings'])->name('bookings');
     Route::get('/bookings/{id}', [PenyewaController::class, 'bookingDetail'])->name('booking.detail');
+    Route::get('/bookings/{id}/detail', [PenyewaController::class, 'getBookingDetailAjax'])->name('booking.detail.ajax');
     Route::patch('/bookings/{id}/cancel', [PenyewaController::class, 'cancelBooking'])->name('booking.cancel');
     
     // Payment routes
     Route::get('/payment/{bookingId}', [PenyewaController::class, 'paymentForm'])->name('payment.form');
     Route::post('/payment', [PenyewaController::class, 'processPayment'])->name('payment.store');
     Route::get('/payment-history', [PenyewaController::class, 'paymentHistory'])->name('payment.history');
+    Route::get('/payments/{id}/detail', [PenyewaController::class, 'getPaymentDetailAjax'])->name('payment.detail.ajax');
+    Route::get('/payments/{id}/invoice', [PenyewaController::class, 'paymentInvoice'])->name('payment.invoice');
 });
 
 // Routes untuk Pemilik Motor
@@ -124,6 +127,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/financial-report', [AdminController::class, 'financialReport'])->name('financial-report');
     Route::get('/export-report', [AdminController::class, 'exportReport'])->name('export.report');
+    
+    // Notifications
+    Route::get('/notifications', [AdminController::class, 'getNotifications'])->name('notifications');
+    Route::patch('/notifications/{id}/read', [AdminController::class, 'markNotificationAsRead'])->name('notifications.read');
+    Route::patch('/notifications/mark-all-read', [AdminController::class, 'markAllNotificationsAsRead'])->name('notifications.mark-all-read');
 });
 
 require __DIR__.'/auth.php';
