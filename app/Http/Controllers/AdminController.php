@@ -181,6 +181,50 @@ class AdminController extends Controller
         return view('admin.motors', compact('motors'));
     }
 
+    /**
+     * Show motor detail for admin
+     */
+    public function motorDetail($id)
+    {
+        $motor = Motor::with(['owner', 'rentalRate', 'bookings.user'])
+            ->findOrFail($id);
+
+        return view('admin.motor-detail', compact('motor'));
+    }
+
+    /**
+     * Get motor detail for AJAX/modal (admin)
+     */
+    public function getMotorDetailAjax($id)
+    {
+        $motor = Motor::with(['owner', 'rentalRate', 'bookings' => function($query) {
+                $query->with('user')->latest()->limit(5);
+            }])
+            ->findOrFail($id);
+
+        // Calculate some statistics
+        $totalBookings = $motor->bookings()->count();
+        $activeBookings = $motor->bookings()->whereIn('status', ['confirmed', 'active'])->count();
+        $completedBookings = $motor->bookings()->where('status', 'completed')->count();
+        
+        // Calculate total earnings
+        $totalEarnings = $motor->bookings()
+            ->where('status', 'completed')
+            ->join('payments', 'bookings.id', '=', 'payments.booking_id')
+            ->where('payments.status', 'completed')
+            ->sum('payments.amount');
+
+        return response()->json([
+            'motor' => $motor,
+            'stats' => [
+                'total_bookings' => $totalBookings,
+                'active_bookings' => $activeBookings,
+                'completed_bookings' => $completedBookings,
+                'total_earnings' => $totalEarnings
+            ]
+        ]);
+    }
+
     public function verifyMotor(Motor $motor)
     {
         $motor->update([

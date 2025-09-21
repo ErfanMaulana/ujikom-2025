@@ -10,6 +10,7 @@ use App\Models\RevenueSharing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class PemilikController extends Controller
@@ -43,7 +44,7 @@ class PemilikController extends Controller
 
         // Motor terbaru
         $recentMotors = Motor::where('owner_id', $user->id)
-            ->with('rentalRates')
+            ->with('rentalRate')
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
@@ -73,7 +74,7 @@ class PemilikController extends Controller
     public function motors(Request $request)
     {
         $query = Motor::where('owner_id', Auth::id())
-            ->with('rentalRates');
+            ->with('rentalRate');
 
         // Filter berdasarkan status
         if ($request->has('status') && $request->status !== '') {
@@ -154,10 +155,44 @@ class PemilikController extends Controller
     public function motorDetail($id)
     {
         $motor = Motor::where('owner_id', Auth::id())
-            ->with(['rentalRates', 'bookings.user'])
+            ->with(['rentalRate', 'bookings.user'])
             ->findOrFail($id);
 
         return view('pemilik.motor-detail', compact('motor'));
+    }
+
+    /**
+     * Get motor detail for AJAX/modal
+     */
+    public function getMotorDetailAjax($id)
+    {
+        $motor = Motor::where('owner_id', Auth::id())
+            ->with(['rentalRate', 'bookings' => function($query) {
+                $query->with('user')->latest()->limit(5);
+            }])
+            ->findOrFail($id);
+
+        // Calculate some statistics
+        $totalBookings = $motor->bookings()->count();
+        $activeBookings = $motor->bookings()->whereIn('status', ['confirmed', 'active'])->count();
+        $completedBookings = $motor->bookings()->where('status', 'completed')->count();
+        
+        // Calculate total earnings
+        $totalEarnings = $motor->bookings()
+            ->where('status', 'completed')
+            ->join('payments', 'bookings.id', '=', 'payments.booking_id')
+            ->where('payments.status', 'completed')
+            ->sum('payments.amount');
+
+        return response()->json([
+            'motor' => $motor,
+            'stats' => [
+                'total_bookings' => $totalBookings,
+                'active_bookings' => $activeBookings,
+                'completed_bookings' => $completedBookings,
+                'total_earnings' => $totalEarnings
+            ]
+        ]);
     }
 
     /**
@@ -165,9 +200,13 @@ class PemilikController extends Controller
      */
     public function editMotor($id)
     {
+        Log::info('EditMotor called with ID: ' . $id . ' by user: ' . Auth::id());
+        
         $motor = Motor::where('owner_id', Auth::id())
             ->with('rentalRate')
             ->findOrFail($id);
+
+        Log::info('Motor found for edit: ' . $motor->brand . ' - ' . $motor->plate_number);
 
         return view('pemilik.motor-edit', compact('motor'));
     }
@@ -240,8 +279,12 @@ class PemilikController extends Controller
      */
     public function deleteMotor($id)
     {
+        Log::info('DeleteMotor called with ID: ' . $id . ' by user: ' . Auth::id());
+        
         $motor = Motor::where('owner_id', Auth::id())
             ->findOrFail($id);
+
+        Log::info('Motor found: ' . $motor->brand . ' - ' . $motor->plate_number);
 
         // Cek apakah motor sedang disewa
         $activeBookings = $motor->bookings()
@@ -249,6 +292,7 @@ class PemilikController extends Controller
             ->count();
 
         if ($activeBookings > 0) {
+            Log::info('Motor has active bookings: ' . $activeBookings);
             return back()->withErrors(['error' => 'Motor tidak dapat dihapus karena sedang ada pesanan aktif.']);
         }
 
@@ -258,10 +302,14 @@ class PemilikController extends Controller
         }
 
         // Hapus rental rate
-        $motor->rentalRate()->delete();
+        if ($motor->rentalRate) {
+            $motor->rentalRate->delete();
+        }
 
         // Hapus motor
         $motor->delete();
+
+        Log::info('Motor deleted successfully');
 
         return redirect()->route('pemilik.motors')
             ->with('success', 'Motor berhasil dihapus.');

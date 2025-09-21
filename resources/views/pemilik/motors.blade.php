@@ -77,9 +77,9 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="motorAction{{ $motor->id }}">
                                 <li>
-                                    <a class="dropdown-item" href="{{ route('pemilik.motor.detail', $motor->id) }}">
+                                    <button class="dropdown-item" onclick="showMotorDetail({{ $motor->id }})">
                                         <i class="bi bi-eye me-2"></i>Lihat Detail
-                                    </a>
+                                    </button>
                                 </li>
                                 <li>
                                     <a class="dropdown-item" href="{{ route('pemilik.motor.edit', $motor->id) }}">
@@ -114,20 +114,20 @@
                     @endif
 
                     <!-- Rental Rates -->
-                    @if($motor->rentalRates)
+                    @if($motor->rentalRate)
                         <div class="mb-3">
                             <div class="row text-center">
                                 <div class="col-4">
                                     <small class="text-muted">Harian</small>
-                                    <div class="fw-bold text-primary">Rp {{ number_format($motor->rentalRates->daily_rate, 0, ',', '.') }}</div>
+                                    <div class="fw-bold text-primary">Rp {{ number_format($motor->rentalRate->daily_rate, 0, ',', '.') }}</div>
                                 </div>
                                 <div class="col-4">
                                     <small class="text-muted">Mingguan</small>
-                                    <div class="fw-bold text-primary">Rp {{ number_format($motor->rentalRates->weekly_rate, 0, ',', '.') }}</div>
+                                    <div class="fw-bold text-primary">Rp {{ number_format($motor->rentalRate->weekly_rate, 0, ',', '.') }}</div>
                                 </div>
                                 <div class="col-4">
                                     <small class="text-muted">Bulanan</small>
-                                    <div class="fw-bold text-primary">Rp {{ number_format($motor->rentalRates->monthly_rate, 0, ',', '.') }}</div>
+                                    <div class="fw-bold text-primary">Rp {{ number_format($motor->rentalRate->monthly_rate, 0, ',', '.') }}</div>
                                 </div>
                             </div>
                         </div>
@@ -167,6 +167,37 @@
     </div>
 @endif
 
+<!-- Motor Detail Modal -->
+<div class="modal fade" id="motorDetailModal" tabindex="-1" aria-labelledby="motorDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="motorDetailModalLabel">
+                    <i class="bi bi-motorcycle me-2"></i>Detail Motor
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="motorDetailContent">
+                    <!-- Loading state -->
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Memuat detail motor...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-primary" id="editMotorBtn">
+                    <i class="bi bi-pencil me-2"></i>Edit Motor
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -192,9 +223,238 @@
 </div>
 
 <script>
+// Show motor detail in modal
+function showMotorDetail(motorId) {
+    const modal = new bootstrap.Modal(document.getElementById('motorDetailModal'));
+    const content = document.getElementById('motorDetailContent');
+    
+    // Show loading state
+    content.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Memuat detail motor...</p>
+        </div>
+    `;
+    
+    // Show modal
+    modal.show();
+    
+    // Fetch motor detail
+    fetch(`{{ url('pemilik/motors') }}/${motorId}/ajax`)
+        .then(response => response.json())
+        .then(data => {
+            const motor = data.motor;
+            const stats = data.stats;
+            
+            // Update edit button
+            document.getElementById('editMotorBtn').onclick = function() {
+                window.location.href = `{{ url('pemilik/motors') }}/${motorId}/edit`;
+            };
+            
+            // Build motor detail HTML
+            const photoUrl = motor.photo ? `{{ asset('storage') }}/${motor.photo}` : null;
+            const statusClass = {
+                'pending_verification': 'warning',
+                'available': 'success',
+                'rented': 'info',
+                'maintenance': 'secondary'
+            };
+            const statusText = {
+                'pending_verification': 'Menunggu Verifikasi',
+                'available': 'Tersedia',
+                'rented': 'Disewa',
+                'maintenance': 'Maintenance'
+            };
+            
+            content.innerHTML = \`
+                <div class="row">
+                    <!-- Motor Photo -->
+                    <div class="col-md-6">
+                        <div class="motor-photo mb-4">
+                            \${photoUrl ? 
+                                \`<img src="\${photoUrl}" class="img-fluid rounded" alt="\${motor.brand}" style="width: 100%; height: 300px; object-fit: cover;">\` :
+                                \`<div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 300px;">
+                                    <i class="bi bi-motorcycle text-muted" style="font-size: 4rem;"></i>
+                                </div>\`
+                            }
+                        </div>
+                    </div>
+                    
+                    <!-- Motor Info -->
+                    <div class="col-md-6">
+                        <div class="motor-info">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h4 class="mb-0">\${motor.brand}</h4>
+                                <span class="badge bg-\${statusClass[motor.status]}">\${statusText[motor.status]}</span>
+                            </div>
+                            
+                            <div class="info-group mb-3">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Kapasitas Mesin</small>
+                                        <div class="fw-bold">\${motor.type_cc}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Nomor Plat</small>
+                                        <div class="fw-bold">\${motor.plate_number}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            \${motor.description ? \`
+                                <div class="info-group mb-3">
+                                    <small class="text-muted">Deskripsi</small>
+                                    <div>\${motor.description}</div>
+                                </div>
+                            \` : ''}
+                            
+                            <!-- Rental Rates -->
+                            \${motor.rental_rate ? \`
+                                <div class="info-group mb-3">
+                                    <small class="text-muted">Tarif Sewa</small>
+                                    <div class="row mt-2">
+                                        <div class="col-4 text-center">
+                                            <div class="border rounded p-2">
+                                                <small class="text-muted">Harian</small>
+                                                <div class="fw-bold text-primary">Rp \${new Intl.NumberFormat('id-ID').format(motor.rental_rate.daily_rate)}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 text-center">
+                                            <div class="border rounded p-2">
+                                                <small class="text-muted">Mingguan</small>
+                                                <div class="fw-bold text-primary">Rp \${new Intl.NumberFormat('id-ID').format(motor.rental_rate.weekly_rate)}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 text-center">
+                                            <div class="border rounded p-2">
+                                                <small class="text-muted">Bulanan</small>
+                                                <div class="fw-bold text-primary">Rp \${new Intl.NumberFormat('id-ID').format(motor.rental_rate.monthly_rate)}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            \` : ''}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Statistics -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h6 class="mb-3">Statistik Motor</h6>
+                        <div class="row">
+                            <div class="col-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <i class="bi bi-calendar-check text-primary fs-4"></i>
+                                    <div class="mt-2">
+                                        <div class="fw-bold">\${stats.total_bookings}</div>
+                                        <small class="text-muted">Total Pesanan</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <i class="bi bi-clock text-warning fs-4"></i>
+                                    <div class="mt-2">
+                                        <div class="fw-bold">\${stats.active_bookings}</div>
+                                        <small class="text-muted">Pesanan Aktif</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <i class="bi bi-check-circle text-success fs-4"></i>
+                                    <div class="mt-2">
+                                        <div class="fw-bold">\${stats.completed_bookings}</div>
+                                        <small class="text-muted">Selesai</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <i class="bi bi-currency-dollar text-info fs-4"></i>
+                                    <div class="mt-2">
+                                        <div class="fw-bold">Rp \${new Intl.NumberFormat('id-ID').format(stats.total_earnings)}</div>
+                                        <small class="text-muted">Total Pendapatan</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Bookings -->
+                \${motor.bookings && motor.bookings.length > 0 ? \`
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h6 class="mb-3">Pesanan Terbaru</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Penyewa</th>
+                                            <th>Tanggal</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        \${motor.bookings.map(booking => \`
+                                            <tr>
+                                                <td>\${booking.user ? booking.user.name : 'N/A'}</td>
+                                                <td>\${new Date(booking.start_date).toLocaleDateString('id-ID')}</td>
+                                                <td>
+                                                    <span class="badge bg-\${booking.status === 'confirmed' ? 'success' : booking.status === 'pending' ? 'warning' : 'secondary'} bg-opacity-10 text-\${booking.status === 'confirmed' ? 'success' : booking.status === 'pending' ? 'warning' : 'secondary'}">
+                                                        \${booking.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        \`).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                \` : ''}
+                
+                <!-- Registration Info -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>
+                            Didaftarkan pada \${new Date(motor.created_at).toLocaleDateString('id-ID', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                            })}
+                        </small>
+                    </div>
+                </div>
+            \`;
+        })
+        .catch(error => {
+            console.error('Error fetching motor detail:', error);
+            content.innerHTML = \`
+                <div class="text-center py-4">
+                    <i class="bi bi-exclamation-triangle text-danger fs-1"></i>
+                    <p class="mt-2 text-danger">Gagal memuat detail motor.</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="showMotorDetail(\${motorId})">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Coba Lagi
+                    </button>
+                </div>
+            \`;
+        });
+}
+
 function deleteMotor(motorId, motorName) {
+    console.log('Delete motor called with ID:', motorId, 'Name:', motorName);
+    
     const form = document.getElementById('deleteForm');
-    form.action = `/pemilik/motors/${motorId}`;
+    const deleteUrl = `{{ url('pemilik/motors') }}/${motorId}`;
+    
+    console.log('Setting form action to:', deleteUrl);
+    form.action = deleteUrl;
     
     // Update motor name in modal
     document.getElementById('motorName').textContent = motorName;

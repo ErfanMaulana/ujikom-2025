@@ -84,16 +84,17 @@
                                 @endif
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $motor->brand }} {{ $motor->model }}</h6>
-                                    <p class="text-muted mb-2">{{ $motor->cc }}cc • {{ $motor->year }}</p>
-                                    @if($motor->rentalRates->isNotEmpty())
+                                    <p class="text-muted mb-2">{{ $motor->type_cc }} • {{ $motor->year }}</p>
+                                    @if($motor->rentalRate)
                                         <p class="text-primary fw-bold mb-2">
-                                            Rp {{ number_format($motor->rentalRates->first()->daily_rate, 0, ',', '.') }}/hari
+                                            Rp {{ number_format($motor->rentalRate->daily_rate, 0, ',', '.') }}/hari
                                         </p>
                                     @endif
-                                    <a href="{{ route('penyewa.motor.detail', $motor->id) }}" 
-                                       class="btn btn-primary btn-sm w-100">
+                                    <button type="button" 
+                                            class="btn btn-primary btn-sm w-100"
+                                            onclick="showMotorDetail({{ $motor->id }})">
                                         <i class="bi bi-eye me-1"></i>Lihat Detail
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -217,4 +218,171 @@
         </div>
     </div>
 </div>
+
+<!-- Motor Detail Modal -->
+<div class="modal fade" id="motorDetailModal" tabindex="-1" aria-labelledby="motorDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="motorDetailModalLabel">
+                    <i class="bi bi-motorcycle me-2"></i>Detail Motor
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="motorDetailContent">
+                    <div class="d-flex justify-content-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Memuat detail motor...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i>Tutup
+                </button>
+                <div id="bookingButtonContainer"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Show motor detail in modal
+function showMotorDetail(motorId) {
+    const modal = new bootstrap.Modal(document.getElementById('motorDetailModal'));
+    const content = document.getElementById('motorDetailContent');
+    const bookingContainer = document.getElementById('bookingButtonContainer');
+    
+    // Reset content
+    content.innerHTML = `
+        <div class="d-flex justify-content-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Memuat detail motor...</p>
+        </div>
+    `;
+    bookingContainer.innerHTML = '';
+    
+    // Show modal
+    modal.show();
+    
+    // Fetch motor detail
+    fetch(`/penyewa/motors/${motorId}/detail-ajax`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const motor = data.motor;
+            
+            // Build motor detail HTML
+            let rentalRateHtml = '';
+            if (motor.rental_rate) {
+                rentalRateHtml = `
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">Tarif Sewa Harian</h6>
+                                <div class="h5 text-primary">Rp ${new Intl.NumberFormat('id-ID').format(motor.rental_rate.daily_rate)}</div>
+                                <small class="text-muted">per hari</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        ${motor.photo ? 
+                            `<img src="/storage/${motor.photo}" class="img-fluid rounded" alt="${motor.brand} ${motor.model}">` :
+                            `<div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 300px;">
+                                <i class="bi bi-motorcycle text-muted" style="font-size: 4rem;"></i>
+                             </div>`
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <h3>${motor.brand} ${motor.model}</h3>
+                        <div class="mb-3">
+                            <span class="badge bg-primary me-2">${motor.type_cc}</span>
+                            <span class="badge bg-success">Tersedia</span>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Tahun:</strong><br>
+                                <span class="text-muted">${motor.year}</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Warna:</strong><br>
+                                <span class="text-muted">${motor.color}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Nomor Plat:</strong><br>
+                                <span class="text-muted">${motor.license_plate}</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Pemilik:</strong><br>
+                                <span class="text-muted">${motor.owner.name}</span>
+                            </div>
+                        </div>
+                        
+                        ${motor.description ? `
+                            <div class="mb-3">
+                                <strong>Deskripsi:</strong><br>
+                                <p class="text-muted mb-0">${motor.description}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                ${rentalRateHtml ? `
+                    <div class="mt-4">
+                        <h5><i class="bi bi-currency-dollar me-2"></i>Harga Sewa</h5>
+                        <div class="row">
+                            ${rentalRateHtml}
+                        </div>
+                    </div>
+                ` : `
+                    <div class="mt-4">
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Harga sewa belum ditentukan untuk motor ini.
+                        </div>
+                    </div>
+                `}
+            `;
+            
+            // Add booking button if rates available
+            if (motor.rental_rate) {
+                bookingContainer.innerHTML = `
+                    <a href="/penyewa/booking/${motor.id}" class="btn btn-primary">
+                        <i class="bi bi-calendar-plus me-1"></i>Sewa Sekarang
+                    </a>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching motor detail:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="bi bi-exclamation-triangle me-2"></i>Error</h6>
+                    <p class="mt-2 text-danger">Gagal memuat detail motor.</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="showMotorDetail(${motorId})">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Coba Lagi
+                    </button>
+                </div>
+            `;
+        });
+}
+</script>
 @endsection

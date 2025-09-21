@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Motor;
 use App\Models\Booking;
-use App\Models\Payment;
 use App\Models\RentalRate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,82 +11,78 @@ use Carbon\Carbon;
 
 class PenyewaController extends Controller
 {
-    // Middleware akan didefinisikan di routes
-
     /**
-     * Dashboard untuk penyewa
+     * Dashboard penyewa
      */
     public function dashboard()
     {
-        $user = Auth::user();
+        $penyewa = Auth::user();
         
-        // Statistik untuk penyewa
-        $totalBookings = Booking::where('user_id', $user->id)->count();
-        $activeBookings = Booking::where('user_id', $user->id)
-            ->where('status', 'confirmed')
-            ->where('end_date', '>=', Carbon::now())
+        // Statistik
+        $totalBookings = Booking::where('renter_id', $penyewa->id)->count();
+        $activeBookings = Booking::where('renter_id', $penyewa->id)
+            ->where('status', 'active')
             ->count();
-        $completedBookings = Booking::where('user_id', $user->id)
+        $completedBookings = Booking::where('renter_id', $penyewa->id)
             ->where('status', 'completed')
             ->count();
-        $totalSpent = Payment::whereHas('booking', function($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })->where('status', 'paid')->sum('amount');
 
-        // Booking terakhir
-        $recentBookings = Booking::where('user_id', $user->id)
-            ->with(['motor', 'payment'])
+        // Total spent - dari booking yang sudah completed
+        $totalSpent = Booking::where('renter_id', $penyewa->id)
+            ->where('status', 'completed')
+            ->sum('price');
+
+        // Recent bookings untuk dashboard
+        $recentBookings = Booking::where('renter_id', $penyewa->id)
+            ->with(['motor', 'motor.rentalRate'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
+        // Featured motors untuk dashboard
+        $featuredMotors = Motor::where('status', 'available')
+            ->with(['rentalRate'])
+            ->limit(6)
+            ->get();
+
         return view('penyewa.dashboard', compact(
-            'totalBookings', 
+            'totalBookings',
             'activeBookings', 
-            'completedBookings', 
+            'completedBookings',
             'totalSpent',
-            'recentBookings'
+            'recentBookings',
+            'featuredMotors'
         ));
     }
 
     /**
-     * Tampilkan daftar motor yang tersedia
+     * Daftar motor tersedia
      */
     public function motors(Request $request)
     {
         $query = Motor::where('status', 'available')
-            ->with(['rentalRates', 'owner']);
+            ->with(['rentalRate']);
 
-        // Filter berdasarkan CC
-        if ($request->has('cc') && $request->cc !== '') {
-            $query->where('cc', $request->cc);
-        }
-
-        // Filter berdasarkan harga maksimal
-        if ($request->has('max_price') && $request->max_price !== '') {
-            $query->whereHas('rentalRates', function($q) use ($request) {
-                $q->where('rate_per_day', '<=', $request->max_price);
+        // Filter berdasarkan pencarian
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('brand', 'like', '%' . $search . '%')
+                  ->orWhere('model', 'like', '%' . $search . '%')
+                  ->orWhere('year', 'like', '%' . $search . '%');
             });
         }
 
-        // Search berdasarkan nama atau merk
-        if ($request->has('search') && $request->search !== '') {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('brand', 'like', "%{$search}%");
+        // Filter berdasarkan harga
+        if ($request->has('max_price') && $request->max_price) {
+            $query->whereHas('rentalRate', function($q) use ($request) {
+                $q->where('daily_rate', '<=', $request->max_price);
             });
         }
 
         $motors = $query->paginate(12);
 
-        // Data untuk filter
-        $ccOptions = Motor::where('status', 'available')
-            ->distinct()
-            ->orderBy('cc')
-            ->pluck('cc');
-
-        return view('penyewa.motors', compact('motors', 'ccOptions'));
+        return view('penyewa.motors', compact('motors'));
     }
 
     /**
@@ -96,10 +91,24 @@ class PenyewaController extends Controller
     public function motorDetail($id)
     {
         $motor = Motor::where('status', 'available')
-            ->with(['rentalRates', 'owner'])
+            ->with(['rentalRate', 'owner'])
             ->findOrFail($id);
 
         return view('penyewa.motor-detail', compact('motor'));
+    }
+
+    /**
+     * Get motor detail via AJAX for modal
+     */
+    public function getMotorDetailAjax($id)
+    {
+        $motor = Motor::where('status', 'available')
+            ->with(['rentalRate', 'owner'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'motor' => $motor
+        ]);
     }
 
     /**
@@ -108,7 +117,7 @@ class PenyewaController extends Controller
     public function bookingForm($motorId)
     {
         $motor = Motor::where('status', 'available')
-            ->with(['rentalRates'])
+            ->with(['rentalRate'])
             ->findOrFail($motorId);
 
         return view('penyewa.booking-form', compact('motor'));
@@ -127,7 +136,7 @@ class PenyewaController extends Controller
         ]);
 
         $motor = Motor::where('status', 'available')->findOrFail($request->motor_id);
-        $rentalRate = $motor->rentalRates()->first();
+        $rentalRate = $motor->rentalRate;
 
         if (!$rentalRate) {
             return back()->with('error', 'Tarif sewa belum ditetapkan untuk motor ini.');
@@ -147,53 +156,40 @@ class PenyewaController extends Controller
             ->exists();
 
         if ($existingBooking) {
-            return back()->with('error', 'Motor tidak tersedia pada tanggal yang dipilih.');
+            return back()->with('error', 'Motor sudah dibooking pada tanggal tersebut.');
         }
 
-        // Hitung total hari dan biaya
+        // Hitung total hari dan total harga
         $startDate = Carbon::parse($request->start_date);
         $endDate = Carbon::parse($request->end_date);
-        $totalDays = $startDate->diffInDays($endDate) + 1;
-        $totalAmount = $totalDays * $rentalRate->rate_per_day;
+        $totalDays = $startDate->diffInDays($endDate) + 1; // +1 karena include kedua tanggal
+        $totalAmount = $totalDays * $rentalRate->daily_rate;
 
         // Buat booking
         $booking = Booking::create([
-            'user_id' => Auth::id(),
+            'renter_id' => Auth::id(),
             'motor_id' => $request->motor_id,
-            'rental_rate_id' => $rentalRate->id,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
-            'total_days' => $totalDays,
-            'total_amount' => $totalAmount,
+            'duration_type' => 'daily',
+            'price' => $totalAmount,
             'status' => 'pending',
             'notes' => $request->notes
         ]);
 
-        // Buat payment record
-        Payment::create([
-            'booking_id' => $booking->id,
-            'amount' => $totalAmount,
-            'status' => 'pending'
-        ]);
-
-        return redirect()->route('penyewa.booking.detail', $booking->id)
+        return redirect()->route('penyewa.payment.form', $booking->id)
             ->with('success', 'Booking berhasil dibuat. Silakan lakukan pembayaran.');
     }
 
     /**
      * Daftar booking penyewa
      */
-    public function bookings(Request $request)
+    public function bookings()
     {
-        $query = Booking::where('user_id', Auth::id())
-            ->with(['motor', 'payment']);
-
-        // Filter berdasarkan status
-        if ($request->has('status') && $request->status !== '') {
-            $query->where('status', $request->status);
-        }
-
-        $bookings = $query->orderBy('created_at', 'desc')->paginate(10);
+        $bookings = Booking::where('renter_id', Auth::id())
+            ->with(['motor', 'motor.rentalRate'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
 
         return view('penyewa.bookings', compact('bookings'));
     }
@@ -203,76 +199,19 @@ class PenyewaController extends Controller
      */
     public function bookingDetail($id)
     {
-        $booking = Booking::where('user_id', Auth::id())
-            ->with(['motor', 'motor.owner', 'payment', 'rentalRate'])
+        $booking = Booking::where('renter_id', Auth::id())
+            ->with(['motor', 'motor.rentalRate', 'motor.owner'])
             ->findOrFail($id);
 
         return view('penyewa.booking-detail', compact('booking'));
     }
 
     /**
-     * Form pembayaran
-     */
-    public function paymentForm($bookingId)
-    {
-        $booking = Booking::where('user_id', Auth::id())
-            ->where('status', 'pending')
-            ->with(['motor', 'payment'])
-            ->findOrFail($bookingId);
-
-        if ($booking->payment->status === 'paid') {
-            return redirect()->route('penyewa.booking.detail', $booking->id)
-                ->with('info', 'Pembayaran sudah dilakukan.');
-        }
-
-        return view('penyewa.payment-form', compact('booking'));
-    }
-
-    /**
-     * Proses pembayaran
-     */
-    public function processPayment(Request $request)
-    {
-        $request->validate([
-            'booking_id' => 'required|exists:bookings,id',
-            'payment_method' => 'required|in:bank_transfer,e_wallet,cash',
-            'proof_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
-        ]);
-
-        $booking = Booking::where('user_id', Auth::id())
-            ->with('payment')
-            ->findOrFail($request->booking_id);
-
-        if ($booking->payment->status === 'paid') {
-            return back()->with('error', 'Pembayaran sudah dilakukan.');
-        }
-
-        $paymentData = [
-            'payment_method' => $request->payment_method,
-            'paid_at' => Carbon::now(),
-            'status' => 'paid'
-        ];
-
-        // Upload bukti pembayaran jika ada
-        if ($request->hasFile('proof_image')) {
-            $file = $request->file('proof_image');
-            $filename = 'payment_' . $booking->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/payments'), $filename);
-            $paymentData['proof_image'] = $filename;
-        }
-
-        $booking->payment->update($paymentData);
-
-        return redirect()->route('penyewa.booking.detail', $booking->id)
-            ->with('success', 'Pembayaran berhasil. Menunggu konfirmasi admin.');
-    }
-
-    /**
-     * Batalkan booking
+     * Cancel booking
      */
     public function cancelBooking($id)
     {
-        $booking = Booking::where('user_id', Auth::id())
+        $booking = Booking::where('renter_id', Auth::id())
             ->where('status', 'pending')
             ->findOrFail($id);
 
@@ -282,14 +221,66 @@ class PenyewaController extends Controller
     }
 
     /**
-     * History pembayaran
+     * Form pembayaran
+     */
+    public function paymentForm($bookingId)
+    {
+        $booking = Booking::where('renter_id', Auth::id())
+            ->where('status', 'pending')
+            ->with(['motor', 'motor.rentalRate'])
+            ->findOrFail($bookingId);
+
+        return view('penyewa.payment-form', compact('booking'));
+    }
+
+    /**
+     * Proses pembayaran
+     */
+    public function processPayment(Request $request, $bookingId)
+    {
+        $request->validate([
+            'payment_method' => 'required|in:transfer,cash',
+            'payment_proof' => 'required_if:payment_method,transfer|image|mimes:jpeg,png,jpg|max:2048'
+        ]);
+
+        $booking = Booking::where('renter_id', Auth::id())
+            ->where('status', 'pending')
+            ->findOrFail($bookingId);
+
+        $paymentData = [
+            'booking_id' => $booking->id,
+            'amount' => $booking->price,
+            'payment_method' => $request->payment_method,
+            'status' => 'pending'
+        ];
+
+        // Upload bukti pembayaran jika transfer
+        if ($request->payment_method === 'transfer' && $request->hasFile('payment_proof')) {
+            $file = $request->file('payment_proof');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->storeAs('payment-proofs', $filename, 'public');
+            $paymentData['payment_proof'] = $filename;
+        }
+
+        // Buat payment record
+        \App\Models\Payment::create($paymentData);
+
+        // Update booking status
+        $booking->update(['status' => 'confirmed']);
+
+        return redirect()->route('penyewa.bookings')
+            ->with('success', 'Pembayaran berhasil disubmit. Menunggu konfirmasi admin.');
+    }
+
+    /**
+     * Riwayat pembayaran
      */
     public function paymentHistory()
     {
-        $payments = Payment::whereHas('booking', function($query) {
-            $query->where('user_id', Auth::id());
+        $payments = \App\Models\Payment::whereHas('booking', function($query) {
+            $query->where('renter_id', Auth::id());
         })
-        ->with(['booking.motor'])
+        ->with(['booking', 'booking.motor'])
         ->orderBy('created_at', 'desc')
         ->paginate(10);
 

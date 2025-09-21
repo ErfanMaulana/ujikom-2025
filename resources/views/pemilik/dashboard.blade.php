@@ -111,8 +111,8 @@
                                         @endif
                                     </td>
                                     <td>
-                                        @if($motor->rentalRates->isNotEmpty())
-                                            <strong>Rp {{ number_format($motor->rentalRates->first()->daily_rate, 0, ',', '.') }}</strong>
+                                        @if($motor->rentalRate)
+                                            <strong>Rp {{ number_format($motor->rentalRate->daily_rate, 0, ',', '.') }}</strong>
                                         @else
                                             <span class="text-muted">Belum diset</span>
                                         @endif

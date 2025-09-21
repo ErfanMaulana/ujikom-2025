@@ -56,6 +56,7 @@ Route::middleware(['auth', 'role:penyewa'])->prefix('penyewa')->name('penyewa.')
     // Motor routes
     Route::get('/motors', [PenyewaController::class, 'motors'])->name('motors');
     Route::get('/motors/{id}', [PenyewaController::class, 'motorDetail'])->name('motor.detail');
+    Route::get('/motors/{id}/detail-ajax', [PenyewaController::class, 'getMotorDetailAjax'])->name('motor.detail.ajax');
     
     // Booking routes
     Route::get('/booking/{motorId}', [PenyewaController::class, 'bookingForm'])->name('booking.form');
@@ -79,6 +80,7 @@ Route::middleware(['auth', 'role:pemilik'])->prefix('pemilik')->name('pemilik.')
     Route::get('/motors/create', [PemilikController::class, 'createMotor'])->name('motor.create');
     Route::post('/motors', [PemilikController::class, 'storeMotor'])->name('motor.store');
     Route::get('/motors/{id}', [PemilikController::class, 'motorDetail'])->name('motor.detail');
+    Route::get('/motors/{id}/ajax', [PemilikController::class, 'getMotorDetailAjax'])->name('motor.detail.ajax');
     Route::get('/motors/{id}/edit', [PemilikController::class, 'editMotor'])->name('motor.edit');
     Route::patch('/motors/{id}', [PemilikController::class, 'updateMotor'])->name('motor.update');
     Route::delete('/motors/{id}', [PemilikController::class, 'deleteMotor'])->name('motor.delete');
@@ -110,6 +112,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     // Motor verification
     Route::get('/motors', [AdminController::class, 'motors'])->name('motors');
     Route::get('/motors/{id}', [AdminController::class, 'motorDetail'])->name('motor.detail');
+    Route::get('/motors/{id}/ajax', [AdminController::class, 'getMotorDetailAjax'])->name('motor.detail.ajax');
     Route::patch('/motors/{motor}/verify', [AdminController::class, 'verifyMotor'])->name('motor.verify');
     
     // Booking management
