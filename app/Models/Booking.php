@@ -38,6 +38,11 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'renter_id');
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'renter_id');
+    }
+
     public function motor()
     {
         return $this->belongsTo(Motor::class);

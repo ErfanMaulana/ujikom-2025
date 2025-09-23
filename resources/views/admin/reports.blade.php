@@ -30,7 +30,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h3 class="mb-0">Rp {{ number_format($adminCommission ?? 0, 0, ',', '.') }}</h3>
-                        <p class="mb-0">Komisi Admin ({{ $commissionRate ?? 10 }}%)</p>
+                        <p class="mb-0">Komisi Admin ({{ $commissionRate ?? 30 }}%)</p>
                     </div>
                     <i class="bi bi-percent" style="font-size: 2rem; opacity: 0.7;"></i>
                 </div>
@@ -87,11 +87,11 @@
                 <div class="mt-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="text-muted">Komisi Admin</span>
-                        <span class="fw-bold">{{ $commissionRate ?? 10 }}%</span>
+                        <span class="fw-bold">{{ $commissionRate ?? 30 }}%</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="text-muted">Pendapatan Pemilik</span>
-                        <span class="fw-bold">{{ 100 - ($commissionRate ?? 10) }}%</span>
+                        <span class="fw-bold">{{ 100 - ($commissionRate ?? 30) }}%</span>
                     </div>
                 </div>
             </div>
@@ -298,22 +298,44 @@ const revenueCtx = document.getElementById('revenueChart').getContext('2d');
 const revenueChart = new Chart(revenueCtx, {
     type: 'line',
     data: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        datasets: [{
-            label: 'Pendapatan',
-            data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // Data akan diisi dari backend
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.1)',
-            tension: 0.1,
-            fill: true
-        }]
+        labels: @json($chartData['labels'] ?? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
+        datasets: [
+            {
+                label: 'Total Pendapatan',
+                data: @json($chartData['revenue'] ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            },
+            {
+                label: 'Komisi Admin (30%)',
+                data: @json($chartData['admin_commission'] ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false
+            },
+            {
+                label: 'Bagian Pemilik (70%)',
+                data: @json($chartData['owner_share'] ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                borderColor: 'rgb(249, 115, 22)',
+                backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                borderWidth: 2,
+                borderDash: [10, 5],
+                fill: false
+            }
+        ]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                display: false
+                display: true,
+                position: 'top'
             }
         },
         scales: {
@@ -336,7 +358,7 @@ const distributionChart = new Chart(distributionCtx, {
     data: {
         labels: ['Komisi Admin', 'Pendapatan Pemilik'],
         datasets: [{
-            data: [{{ $commissionRate ?? 10 }}, {{ 100 - ($commissionRate ?? 10) }}],
+            data: [{{ $commissionRate ?? 30 }}, {{ 100 - ($commissionRate ?? 30) }}],
             backgroundColor: [
                 '#28a745',
                 '#17a2b8'

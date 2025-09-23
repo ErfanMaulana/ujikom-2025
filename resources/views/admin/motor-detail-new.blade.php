@@ -3,8 +3,11 @@
 @section('title', 'Detail Motor')
 
 @section('content')
+<!-- Content Header -->
 <div class="content-header">
-    <h1><i class="bi bi-motorcycle me-3"></i>Detail Motor</h1>
+    <h1>
+        <i class="bi bi-motorcycle me-3"></i>Detail Motor
+    </h1>
     <p>Informasi lengkap motor untuk verifikasi</p>
 </div>
 
@@ -12,7 +15,9 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Informasi Motor</h5>
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Informasi Motor
+                </h5>
                 <div>
                     @if($motor->status === 'pending_verification')
                         <span class="badge bg-warning fs-6">Menunggu Verifikasi</span>
@@ -42,13 +47,13 @@
                     <div class="col-md-7">
                         <h3 class="mb-3">{{ $motor->brand }} {{ $motor->model }}</h3>
                         
-                        <div class="d-flex align-items-center mb-3">
-                            <span class="badge bg-primary me-2">{{ $motor->type_cc }}</span>
-                            @if($motor->status === 'available')
-                                <span class="badge bg-success">Tersedia</span>
-                            @else
-                                <span class="badge bg-warning">Tidak Tersedia</span>
-                            @endif
+                        <div class="row mb-4">
+                            <div class="col-sm-6 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-primary me-2">{{ $motor->type_cc }}</span>
+                                    <span class="badge bg-info">{{ $motor->status === 'available' ? 'Tersedia' : 'Tidak Tersedia' }}</span>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="row">
@@ -83,15 +88,19 @@
         </div>
 
         @if($motor->status === 'pending_verification')
+            <!-- Verification Form -->
             <div class="card mt-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-check-circle me-2"></i>Verifikasi Motor</h5>
+                    <h5 class="mb-0">
+                        <i class="bi bi-check-circle me-2"></i>Verifikasi Motor
+                    </h5>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('admin.motor.verify', $motor->id) }}" method="POST">
                         @csrf
                         @method('PATCH')
                         
+                        <!-- Rental Rate Form -->
                         <div class="mb-4">
                             <label for="daily_rate" class="form-label">
                                 <i class="bi bi-currency-dollar me-2"></i>Tarif Sewa per Hari *
@@ -99,35 +108,46 @@
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
                                 <input type="number" 
-                                       class="form-control" 
+                                       class="form-control @error('daily_rate') is-invalid @enderror" 
                                        id="daily_rate" 
                                        name="daily_rate" 
                                        min="0" 
                                        step="1000"
+                                       value="{{ old('daily_rate') }}"
                                        placeholder="50000"
                                        required>
+                                @error('daily_rate')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
-                            <div class="form-text">Masukkan tarif sewa per hari untuk motor ini</div>
+                            <div class="form-text">
+                                Masukkan tarif sewa per hari untuk motor ini
+                            </div>
                         </div>
 
                         <div class="mb-4">
                             <label for="verification_notes" class="form-label">
                                 <i class="bi bi-chat-text me-2"></i>Catatan Verifikasi (Opsional)
                             </label>
-                            <textarea class="form-control" 
+                            <textarea class="form-control @error('verification_notes') is-invalid @enderror" 
                                       id="verification_notes" 
                                       name="verification_notes" 
                                       rows="3"
-                                      placeholder="Tambahkan catatan verifikasi jika diperlukan..."></textarea>
+                                      placeholder="Tambahkan catatan verifikasi jika diperlukan...">{{ old('verification_notes') }}</textarea>
+                            @error('verification_notes')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="d-flex justify-content-between">
                             <a href="{{ route('admin.motors') }}" class="btn btn-secondary">
                                 <i class="bi bi-arrow-left me-1"></i>Kembali
                             </a>
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-check-circle me-1"></i>Verifikasi & Setujui
-                            </button>
+                            <div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-circle me-1"></i>Verifikasi & Setujui
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -141,47 +161,112 @@
         @endif
     </div>
 
+    <!-- Sidebar - Motor Statistics and Rental Rate -->
     <div class="col-lg-4">
         @if($motor->rentalRate)
+            <!-- Rental Rate Card -->
             <div class="card mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-currency-dollar me-2"></i>Harga Sewa</h6>
+                    <h6 class="mb-0">
+                        <i class="bi bi-currency-dollar me-2"></i>Harga Sewa
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <div class="text-center mb-3">
-                        <h6>Harian</h6>
-                        <h4 class="text-primary">Rp {{ number_format($motor->rentalRate->daily_rate, 0, ',', '.') }}</h4>
-                        <small class="text-muted">per hari</small>
+                    <div class="row text-center">
+                        <div class="col-12 mb-3">
+                            <div class="text-center">
+                                <h6>Harian</h6>
+                                <h4 class="text-primary">Rp {{ number_format((float)$motor->rentalRate->daily_rate, 0, ',', '.') }}</h4>
+                                <small class="text-muted">per hari</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6>Mingguan</h6>
+                                <h5 class="text-info">Rp {{ number_format((float)$motor->rentalRate->daily_rate * 7 * 0.9, 0, ',', '.') }}</h5>
+                                <small class="text-muted">per minggu</small>
+                                <br><small class="text-success">Diskon 10%</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6>Bulanan</h6>
+                                <h5 class="text-warning">Rp {{ number_format((float)$motor->rentalRate->daily_rate * 30 * 0.8, 0, ',', '.') }}</h5>
+                                <small class="text-muted">per bulan</small>
+                                <br><small class="text-success">Diskon 20%</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         @endif
 
+        <!-- Motor Statistics -->
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Statistik Motor</h6>
+                <h6 class="mb-0">
+                    <i class="bi bi-bar-chart me-2"></i>Statistik Motor
+                </h6>
             </div>
             <div class="card-body">
                 @php
                     $totalBookings = $motor->bookings()->count();
+                    $activeBookings = $motor->bookings()->where('status', 'active')->count();
+                    $completedBookings = $motor->bookings()->where('status', 'completed')->count();
                     $totalEarnings = $motor->bookings()->where('status', 'completed')->sum('price');
                 @endphp
                 
-                <div class="text-center">
-                    <h4 class="text-primary">{{ $totalBookings }}</h4>
-                    <small>Total Booking</small>
-                    <hr>
-                    <h4 class="text-success">Rp {{ number_format($totalEarnings, 0, ',', '.') }}</h4>
-                    <small>Total Earnings</small>
+                <div class="row text-center">
+                    <div class="col-6 mb-4">
+                        <div class="card bg-primary text-white h-100">
+                            <div class="card-body">
+                                <h4 class="mb-0">{{ $totalBookings }}</h4>
+                                <small>Total Booking</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-4">
+                        <div class="card bg-warning text-white h-100">
+                            <div class="card-body">
+                                <h4 class="mb-0">{{ $activeBookings }}</h4>
+                                <small>Aktif</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card bg-success text-white h-100">
+                            <div class="card-body">
+                                <h4 class="mb-0">{{ $completedBookings }}</h4>
+                                <small>Selesai</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card bg-info text-white h-100">
+                            <div class="card-body">
+                                <h4 class="mb-0">Rp {{ number_format($totalEarnings, 0, ',', '.') }}</h4>
+                                <small>Total Earnings</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <!-- Owner Information -->
         <div class="card mt-4">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-person me-2"></i>Informasi Pemilik</h6>
+                <h6 class="mb-0">
+                    <i class="bi bi-person me-2"></i>Informasi Pemilik
+                </h6>
             </div>
             <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center" 
+                         style="width: 60px; height: 60px;">
+                        <i class="bi bi-person text-muted" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
                 <div class="text-center">
                     <h6 class="mb-1">{{ $motor->owner->name }}</h6>
                     <p class="text-muted mb-2">{{ $motor->owner->email }}</p>

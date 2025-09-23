@@ -83,7 +83,7 @@
                             <div class="d-flex justify-content-between">
                                 <div>
                                     <h4>Rp {{ number_format($summary['admin_commission'] ?? 0, 0, ',', '.') }}</h4>
-                                    <p class="mb-0">Komisi Admin (10%)</p>
+                                    <p class="mb-0">Komisi Admin (30%)</p>
                                 </div>
                                 <i class="bi bi-percent fs-1"></i>
                             </div>
@@ -96,7 +96,7 @@
                             <div class="d-flex justify-content-between">
                                 <div>
                                     <h4>Rp {{ number_format($summary['owner_amount'] ?? 0, 0, ',', '.') }}</h4>
-                                    <p class="mb-0">Bagian Pemilik (90%)</p>
+                                    <p class="mb-0">Bagian Pemilik (70%)</p>
                                 </div>
                                 <i class="bi bi-person-check fs-1"></i>
                             </div>
@@ -328,19 +328,35 @@ const revenueChart = new Chart(ctx, {
     type: 'line',
     data: {
         labels: @json($chartData['labels'] ?? []),
-        datasets: [{
-            label: 'Pendapatan Harian',
-            data: @json($chartData['revenue'] ?? []),
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            tension: 0.1
-        }, {
-            label: 'Komisi Admin',
-            data: @json($chartData['commission'] ?? []),
-            borderColor: 'rgb(255, 99, 132)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            tension: 0.1
-        }]
+        datasets: [
+            {
+                label: 'Total Pendapatan',
+                data: @json($chartData['revenue'] ?? []),
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            },
+            {
+                label: 'Komisi Admin (30%)',
+                data: @json($chartData['admin_commission'] ?? []),
+                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false
+            },
+            {
+                label: 'Bagian Pemilik (70%)',
+                data: @json($chartData['owner_share'] ?? []),
+                borderColor: 'rgb(249, 115, 22)',
+                backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                borderWidth: 2,
+                borderDash: [10, 5],
+                fill: false
+            }
+        ]
     },
     options: {
         responsive: true,
@@ -356,6 +372,10 @@ const revenueChart = new Chart(ctx, {
             }
         },
         plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            },
             tooltip: {
                 callbacks: {
                     label: function(context) {

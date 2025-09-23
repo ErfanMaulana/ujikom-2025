@@ -9,6 +9,45 @@
     <p>Kelola motor dan pantau pendapatan Anda dengan mudah</p>
 </div>
 
+<!-- Verification Status Alert -->
+@if(!$isVerified)
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-shield-exclamation me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Akun Belum Terverifikasi</h6>
+                <p class="mb-0">Akun Anda belum diverifikasi. Anda dapat melihat dashboard, tetapi tidak dapat mendaftarkan motor baru. Silakan tunggu admin memverifikasi akun Anda.</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@else
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-shield-check me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Akun Terverifikasi</h6>
+                <p class="mb-0">Selamat! Akun Anda telah diverifikasi dan Anda dapat mendaftarkan motor untuk disewakan.</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
+<!-- Error Messages -->
+@if($errors->has('verification'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Akses Ditolak</h6>
+                <p class="mb-0">{{ $errors->first('verification') }}</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
 <!-- Statistics Cards -->
 <div class="row mb-4">
     <div class="col-lg-3 col-md-6 mb-4">

@@ -26,29 +26,33 @@
             <div class="card-body">
                 <!-- Filter dan Search -->
                 <form method="GET" action="{{ route('admin.users') }}">
-                    <div class="col-md-3">
-                        <label for="role_filter" class="form-label">Filter Role</label>
-                        <select class="form-select" id="role_filter" name="role">
-                            <option value="">Semua Role</option>
-                            <option value="admin" {{ request('role') == 'admin' ? 'selected' : '' }}>Admin</option>
-                            <option value="pemilik" {{ request('role') == 'pemilik' ? 'selected' : '' }}>Pemilik</option>
-                            <option value="penyewa" {{ request('role') == 'penyewa' ? 'selected' : '' }}>Penyewa</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="search" class="form-label">Cari Pengguna</label>
-                        <input type="text" class="form-control" id="search" name="search" 
-                               placeholder="Nama, email, atau telepon..." value="{{ request('search') }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">&nbsp;</label>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-outline-primary">
-                                <i class="bi bi-search"></i> Cari
-                            </button>
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <label for="role_filter" class="form-label">Filter Role</label>
+                            <select class="form-select" id="role_filter" name="role">
+                                <option value="">Semua Role</option>
+                                <option value="admin" {{ request('role') == 'admin' ? 'selected' : '' }}>Admin</option>
+                                <option value="pemilik" {{ request('role') == 'pemilik' ? 'selected' : '' }}>Pemilik</option>
+                                <option value="penyewa" {{ request('role') == 'penyewa' ? 'selected' : '' }}>Penyewa</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="search" class="form-label">Cari Pengguna</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   placeholder="Nama, email, atau telepon..." value="{{ request('search') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="bi bi-search"></i> Cari
+                                </button>
+                                <a href="{{ route('admin.users') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset
+                                </a>
+                            </div>
                         </div>
                     </div>
-                </div>
                 </form>
 
                 <!-- Tabel Pengguna -->
@@ -120,8 +124,16 @@
 
                     <!-- Pagination -->
                     @if($users->hasPages())
-                    <div class="d-flex justify-content-center mt-4">
-                        {{ $users->links() }}
+                    <div class="mt-4">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                            <div class="text-muted mb-2 mb-md-0">
+                                Menampilkan {{ $users->firstItem() }} sampai {{ $users->lastItem() }} 
+                                dari {{ $users->total() }} hasil
+                            </div>
+                            <div>
+                                {{ $users->appends(request()->query())->links('pagination.custom') }}
+                            </div>
+                        </div>
                     </div>
                     @endif
                 </div>

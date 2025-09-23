@@ -9,12 +9,46 @@
     <p>Kelola semua motor yang telah Anda daftarkan</p>
 </div>
 
+<!-- Verification Status Alert -->
+@if(!$isVerified)
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-shield-exclamation me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Perlu Verifikasi Akun</h6>
+                <p class="mb-0">Anda perlu memverifikasi akun terlebih dahulu sebelum dapat mendaftarkan motor baru. Silakan tunggu admin memverifikasi akun Anda.</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
+<!-- Error Messages -->
+@if($errors->has('verification'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Akses Ditolak</h6>
+                <p class="mb-0">{{ $errors->first('verification') }}</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
 <!-- Action Bar -->
 <div class="row mb-4">
     <div class="col-md-6">
-        <a href="{{ route('pemilik.motor.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle me-2"></i>Daftarkan Motor Baru
-        </a>
+        @if($isVerified)
+            <a href="{{ route('pemilik.motor.create') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>Daftarkan Motor Baru
+            </a>
+        @else
+            <button class="btn btn-secondary" disabled>
+                <i class="bi bi-shield-exclamation me-2"></i>Perlu Verifikasi
+            </button>
+        @endif
     </div>
     <div class="col-md-6">
         <form method="GET" action="{{ route('pemilik.motors') }}">
@@ -81,17 +115,31 @@
                                         <i class="bi bi-eye me-2"></i>Lihat Detail
                                     </button>
                                 </li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ route('pemilik.motor.edit', $motor->id) }}">
-                                        <i class="bi bi-pencil me-2"></i>Edit Motor
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <button class="dropdown-item text-danger" onclick="deleteMotor({{ $motor->id }}, '{{ $motor->brand }} {{ $motor->plate_number }}')">
-                                        <i class="bi bi-trash me-2"></i>Hapus Motor
-                                    </button>
-                                </li>
+                                @if($isVerified)
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('pemilik.motor.edit', $motor->id) }}">
+                                            <i class="bi bi-pencil me-2"></i>Edit Motor
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" onclick="deleteMotor({{ $motor->id }}, '{{ $motor->brand }} {{ $motor->plate_number }}')">
+                                            <i class="bi bi-trash me-2"></i>Hapus Motor
+                                        </button>
+                                    </li>
+                                @else
+                                    <li>
+                                        <button class="dropdown-item disabled" disabled>
+                                            <i class="bi bi-shield-exclamation me-2"></i>Edit (Perlu Verifikasi)
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-muted disabled" disabled>
+                                            <i class="bi bi-shield-exclamation me-2"></i>Hapus (Perlu Verifikasi)
+                                        </button>
+                                    </li>
+                                @endif
                             </ul>
                         </div>
                     </div>
@@ -190,9 +238,15 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                <button type="button" class="btn btn-primary" id="editMotorBtn">
-                    <i class="bi bi-pencil me-2"></i>Edit Motor
-                </button>
+                @if($isVerified)
+                    <button type="button" class="btn btn-primary" id="editMotorBtn">
+                        <i class="bi bi-pencil me-2"></i>Edit Motor
+                    </button>
+                @else
+                    <button type="button" class="btn btn-secondary" disabled>
+                        <i class="bi bi-shield-exclamation me-2"></i>Edit (Perlu Verifikasi)
+                    </button>
+                @endif
             </div>
         </div>
     </div>
@@ -248,13 +302,15 @@ function showMotorDetail(motorId) {
             const motor = data.motor;
             const stats = data.stats;
             
-            // Update edit button
-            document.getElementById('editMotorBtn').onclick = function() {
-                window.location.href = `{{ url('pemilik/motors') }}/${motorId}/edit`;
-            };
+            // Update edit button based on verification status
+            @if($isVerified)
+                document.getElementById('editMotorBtn').onclick = function() {
+                    window.location.href = `{{ url('pemilik/motors') }}/${motorId}/edit`;
+                };
+            @endif
             
             // Build motor detail HTML
-            const photoUrl = motor.photo ? `{{ asset('storage') }}/${motor.photo}` : null;
+            const photoUrl = motor.photo ? `{{ url('storage') }}/${motor.photo}` : null;
             const statusClass = {
                 'pending_verification': 'warning',
                 'available': 'success',
@@ -297,7 +353,7 @@ function showMotorDetail(motorId) {
                                         <div class="fw-bold">\${motor.type_cc}</div>
                                     </div>
                                     <div class="col-6">
-                                        <small class="text-muted">Nomor Plat</small>
+                                        <small class="text-muted">Plat Nomor</small>
                                         <div class="fw-bold">\${motor.plate_number}</div>
                                     </div>
                                 </div>

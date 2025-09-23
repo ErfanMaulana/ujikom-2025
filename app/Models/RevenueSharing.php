@@ -52,7 +52,7 @@ class RevenueSharing extends Model
         return $this->status === 'pending';
     }
 
-    public static function calculateShares($totalAmount, $ownerPercentage = 90.00)
+    public static function calculateShares($totalAmount, $ownerPercentage = 70.00)
     {
         $adminPercentage = 100.00 - $ownerPercentage;
         $ownerAmount = ($totalAmount * $ownerPercentage) / 100;

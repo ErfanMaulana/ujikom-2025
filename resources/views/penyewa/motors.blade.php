@@ -11,6 +11,19 @@
     <p>Pilih motor yang ingin Anda sewa</p>
 </div>
 
+<!-- Verification Status Alert -->
+@if(!$isVerified)
+<div class="alert alert-warning mb-4" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-exclamation-triangle-fill me-3" style="font-size: 1.2rem;"></i>
+        <div>
+            <strong>Akun Belum Diverifikasi:</strong> 
+            Anda tidak dapat menyewa motor hingga akun diverifikasi oleh admin.
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="row">
     <div class="col-lg-12">
                     <h1 class="h2 mb-0">
@@ -27,7 +40,7 @@
                         <span class="input-group-text">
                             <i class="bi bi-search"></i>
                         </span>
-                        <input type="text" class="form-control" id="searchMotor" placeholder="Cari motor...">
+                        <input type="text" class="form-control" id="searchMotor" placeholder="Cari brand, model, tahun, atau plat nomor...">
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -64,7 +77,7 @@
                     <div class="col-xl-3 col-lg-4 col-md-6 mb-4 motor-card" 
                          data-brand="{{ $motor->brand }}" 
                          data-type="{{ $motor->type_cc }}" 
-                         data-name="{{ strtolower($motor->brand . ' ' . $motor->model) }}">
+                         data-name="{{ strtolower($motor->brand . ' ' . $motor->model . ' ' . $motor->year . ' ' . $motor->plate_number) }}">
                         <div class="card h-100 shadow-sm hover-shadow">
                             <div class="position-relative">
                                 @if($motor->photo)
@@ -98,6 +111,9 @@
                                     <i class="bi bi-calendar me-1"></i>{{ $motor->year }}
                                     <i class="bi bi-palette ms-2 me-1"></i>{{ $motor->color }}
                                 </p>
+                                <p class="card-text text-muted small mb-2">
+                                    <i class="bi bi-credit-card me-1"></i>{{ $motor->plate_number }}
+                                </p>
                                 
                                 @if($motor->description)
                                     <p class="card-text small text-muted mb-3">
@@ -124,6 +140,27 @@
                                     <span class="text-muted">Pemilik:</span> {{ $motor->owner->name }}
                                 </div>
 
+                                <!-- Rating Display -->
+                                <div class="mb-3 small">
+                                    @php
+                                        $avgRating = $motor->getAverageRating();
+                                        $totalRatings = $motor->getTotalRatings();
+                                    @endphp
+                                    
+                                    @if($totalRatings > 0)
+                                        <div class="d-flex align-items-center">
+                                            @for($i = 1; $i <= 5; $i++)
+                                                <i class="bi bi-star{{ $i <= $avgRating ? '-fill' : '' }} text-warning me-1" style="font-size: 0.85rem;"></i>
+                                            @endfor
+                                            <span class="text-muted ms-1">({{ number_format($avgRating, 1) }}/5 - {{ $totalRatings }} ulasan)</span>
+                                        </div>
+                                    @else
+                                        <div class="text-muted">
+                                            <i class="bi bi-star me-1"></i>Belum ada rating
+                                        </div>
+                                    @endif
+                                </div>
+
                                 <!-- Actions -->
                                 <div class="mt-auto">
                                     <div class="d-grid gap-2">
@@ -132,10 +169,16 @@
                                             <i class="bi bi-eye me-1"></i>Lihat Detail
                                         </button>
                                         @if($motor->rentalRate)
-                                            <a href="{{ route('penyewa.booking.form', $motor->id) }}" 
-                                               class="btn btn-primary btn-sm">
-                                                <i class="bi bi-calendar-plus me-1"></i>Sewa Sekarang
-                                            </a>
+                                            @if($isVerified)
+                                                <a href="{{ route('penyewa.booking.form', $motor->id) }}" 
+                                                   class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-calendar-plus me-1"></i>Sewa Sekarang
+                                                </a>
+                                            @else
+                                                <button class="btn btn-secondary btn-sm" disabled title="Akun belum diverifikasi">
+                                                    <i class="bi bi-lock me-1"></i>Perlu Verifikasi
+                                                </button>
+                                            @endif
                                         @else
                                             <button class="btn btn-secondary btn-sm" disabled>
                                                 <i class="bi bi-x-circle me-1"></i>Tidak Tersedia
@@ -348,8 +391,8 @@ function showMotorDetail(motorId) {
                         
                         <div class="row mb-3">
                             <div class="col-6">
-                                <strong>Nomor Plat:</strong><br>
-                                <span class="text-muted">${motor.license_plate}</span>
+                                <strong>Plat Nomor:</strong><br>
+                                <span class="text-muted">${motor.plate_number}</span>
                             </div>
                             <div class="col-6">
                                 <strong>Pemilik:</strong><br>
@@ -368,18 +411,143 @@ function showMotorDetail(motorId) {
                 
                 ${rentalRateHtml ? `
                     <div class="mt-4">
-                        <h5><i class="bi bi-currency-dollar me-2"></i>Harga Sewa</h5>
+                        <h5>Harga Sewa</h5>
                         <div class="row">
                             ${rentalRateHtml}
                         </div>
                     </div>
                 ` : `
                     <div class="mt-4">
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Harga sewa belum ditentukan untuk motor ini.
+                        <p class="text-muted text-center">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            Harga sewa belum tersedia. Silakan hubungi pemilik motor.
+                        </p>
+                    </div>
+                `}
+                
+                <!-- Rating Section -->
+                <div class="mt-4">
+                    <h5>Rating & Ulasan</h5>
+                    <div id="ratingsSection">
+                        <div class="text-center text-muted py-3">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            Loading ratings...
                         </div>
                     </div>
+                </div>
+            `;
+            
+            // Load ratings for this motor
+            loadMotorRatings(motor.id);
+            
+            const bookingContainer = document.querySelector('.modal-body .d-flex.justify-content-end');
+            if (motor.rental_rate) {
+                @if(!$isVerified)
+                bookingContainer.innerHTML = `
+                    <button class="btn btn-secondary" disabled>
+                        <i class="bi bi-shield-exclamation me-1"></i>Perlu Verifikasi
+                    </button>
+                `;
+                @else
+                bookingContainer.innerHTML = `
+                    <a href="/penyewa/booking/${motor.id}" class="btn btn-primary">
+                        <i class="bi bi-calendar-plus me-1"></i>Sewa Sekarang
+                    </a>
+                `;
+                @endif
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching motor detail:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="bi bi-exclamation-triangle me-2"></i>Error</h6>
+                    <p class="mt-2 text-danger">Gagal memuat detail motor.</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="showMotorDetail(${motorId})">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Coba Lagi
+                    </button>
+                </div>
+            `;
+        });
+}
+
+// Function to load motor ratings
+function loadMotorRatings(motorId) {
+    fetch(`/penyewa/ratings/${motorId}`)
+        .then(response => response.json())
+        .then(data => {
+            const ratingsSection = document.getElementById('ratingsSection');
+            
+            if (data.ratings.data.length === 0) {
+                ratingsSection.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-star me-1"></i>
+                        Belum ada rating untuk motor ini
+                    </div>
+                `;
+                return;
+            }
+            
+            // Display average rating
+            let averageDisplay = '';
+            if (data.average_rating > 0) {
+                averageDisplay = `
+                    <div class="d-flex align-items-center justify-content-between mb-3 p-3 bg-light rounded">
+                        <div>
+                            <h6 class="mb-1">Rating Rata-rata</h6>
+                            <div class="d-flex align-items-center">
+                                ${generateStarRating(data.average_rating)}
+                                <span class="ms-2 fw-bold">${data.average_rating.toFixed(1)}</span>
+                                <span class="ms-1 text-muted">(${data.total_ratings} ulasan)</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Display individual ratings
+            let ratingsHtml = data.ratings.data.map(rating => `
+                <div class="border-bottom pb-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <strong class="me-2">${rating.user.name}</strong>
+                                ${generateStarRating(rating.rating)}
+                                <small class="ms-2 text-muted">${new Date(rating.created_at).toLocaleDateString('id-ID')}</small>
+                            </div>
+                            ${rating.review ? `<p class="mb-0 text-muted">${rating.review}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            ratingsSection.innerHTML = averageDisplay + ratingsHtml;
+        })
+        .catch(error => {
+            console.error('Error loading ratings:', error);
+            document.getElementById('ratingsSection').innerHTML = `
+                <div class="text-center text-danger py-3">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Gagal memuat rating
+                </div>
+            `;
+        });
+}
+
+// Function to generate star rating display
+function generateStarRating(rating) {
+    let starsHtml = '';
+    for (let i = 1; i <= 5; i++) {
+        if (i <= rating) {
+            starsHtml += '<i class="bi bi-star-fill text-warning"></i>';
+        } else if (i - 0.5 <= rating) {
+            starsHtml += '<i class="bi bi-star-half text-warning"></i>';
+        } else {
+            starsHtml += '<i class="bi bi-star text-muted"></i>';
+        }
+    }
+    return starsHtml;
+}
                 `}
             `;
             

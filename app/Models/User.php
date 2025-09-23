@@ -22,6 +22,10 @@ class User extends Authenticatable
         'email',
         'phone',
         'role',
+        'status',
+        'verified_at',
+        'verified_by',
+        'blacklist_reason',
         'password',
     ];
 
@@ -44,6 +48,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -69,6 +74,16 @@ class User extends Authenticatable
         return $this->hasMany(Booking::class, 'confirmed_by');
     }
 
+    public function verifier()
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function ratings()
+    {
+        return $this->hasMany(Rating::class);
+    }
+
     // Helper methods
     public function isPenyewa()
     {
@@ -83,5 +98,24 @@ class User extends Authenticatable
     public function isAdmin()
     {
         return $this->role === 'admin';
+    }
+
+    public function isVerified()
+    {
+        return $this->status === 'verified';
+    }
+
+    public function isBlacklisted()
+    {
+        return $this->status === 'blacklisted';
+    }
+
+    public function getStatusBadgeAttribute()
+    {
+        return match($this->status) {
+            'verified' => '<span class="badge bg-success">Terverifikasi</span>',
+            'blacklisted' => '<span class="badge bg-danger">Blacklist</span>',
+            default => '<span class="badge bg-warning">Belum Verifikasi</span>',
+        };
     }
 }

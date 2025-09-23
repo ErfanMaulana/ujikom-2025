@@ -233,7 +233,23 @@
 
 <!-- Charts Section -->
 <div class="row">
-    <div class="col-lg-6 mb-4">
+    <!-- Revenue Chart -->
+    <div class="col-lg-8 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Grafik Pendapatan Bulanan
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="revenueChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- User Statistics -->
+    <div class="col-lg-4 mb-4">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white py-3">
                 <h5 class="card-title mb-0">
@@ -243,65 +259,86 @@
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-4">
+                    <div class="col-12 mb-3">
                         <h4 class="text-primary">{{ $totalPenyewa + $totalPemilik }}</h4>
                         <small class="text-muted">Total Users</small>
                     </div>
-                    <div class="col-4">
+                    <div class="col-6">
                         <h4 class="text-warning">{{ $totalPemilik }}</h4>
                         <small class="text-muted">Pemilik</small>
                     </div>
-                    <div class="col-4">
+                    <div class="col-6">
                         <h4 class="text-info">{{ $totalPenyewa }}</h4>
                         <small class="text-muted">Penyewa</small>
+                    </div>
+                </div>
+                
+                <!-- Commission Breakdown -->
+                <hr>
+                <div class="row text-center">
+                    <div class="col-12 mb-2">
+                        <h6 class="text-muted">Pembagian Komisi</h6>
+                    </div>
+                    <div class="col-6">
+                        <div class="badge bg-success p-2">Admin: 30%</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="badge bg-primary p-2">Pemilik: 70%</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-lg-6 mb-4">
+</div>
+
+<!-- Recent Activities -->
+<div class="row">
+    <div class="col-lg-12 mb-4">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white py-3">
                 <h5 class="card-title mb-0">
-                    <i class="bi bi-graph-up me-2"></i>
+                    <i class="bi bi-clock-history me-2"></i>
                     Aktivitas Terbaru
                 </h5>
             </div>
             <div class="card-body">
                 @if($pendingBookingsList->count() > 0)
-                    @foreach($pendingBookingsList as $booking)
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="flex-shrink-0">
-                            @if($booking->motor->photo)
-                                <img src="{{ Storage::url($booking->motor->photo) }}" 
-                                     alt="{{ $booking->motor->brand }}" 
-                                     class="rounded" 
-                                     style="width: 40px; height: 40px; object-fit: cover;">
-                            @else
-                                <div class="bg-light rounded d-flex align-items-center justify-content-center" 
-                                     style="width: 40px; height: 40px;">
-                                    <i class="bi bi-motorcycle text-muted"></i>
+                    <div class="row">
+                        @foreach($pendingBookingsList as $booking)
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="d-flex align-items-center p-3 bg-light rounded">
+                                <div class="flex-shrink-0">
+                                    @if($booking->motor->photo)
+                                        <img src="{{ Storage::url($booking->motor->photo) }}" 
+                                             alt="{{ $booking->motor->brand }}" 
+                                             class="rounded" 
+                                             style="width: 40px; height: 40px; object-fit: cover;">
+                                    @else
+                                        <div class="bg-white rounded d-flex align-items-center justify-content-center" 
+                                             style="width: 40px; height: 40px;">
+                                            <i class="bi bi-motorcycle text-muted"></i>
+                                        </div>
+                                    @endif
                                 </div>
-                            @endif
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-0">{{ $booking->motor->brand }}</h6>
+                                    <small class="text-muted">{{ $booking->renter->name }} • {{ $booking->created_at->format('d M Y') }}</small>
+                                </div>
+                                <div class="flex-shrink-0">
+                                    @if($booking->status === 'confirmed')
+                                        <span class="badge bg-success">Dikonfirmasi</span>
+                                    @elseif($booking->status === 'pending')
+                                        <span class="badge bg-warning">Menunggu</span>
+                                    @elseif($booking->status === 'completed')
+                                        <span class="badge bg-info">Selesai</span>
+                                    @else
+                                        <span class="badge bg-secondary">{{ ucfirst($booking->status) }}</span>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0">{{ $booking->motor->brand }}</h6>
-                            <small class="text-muted">{{ $booking->renter->name }} • {{ $booking->created_at->format('d M Y') }}</small>
-                        </div>
-                        <div class="flex-shrink-0">
-                            @if($booking->status === 'confirmed')
-                                <span class="badge bg-success">Dikonfirmasi</span>
-                            @elseif($booking->status === 'pending')
-                                <span class="badge bg-warning">Menunggu</span>
-                            @elseif($booking->status === 'completed')
-                                <span class="badge bg-info">Selesai</span>
-                            @else
-                                <span class="badge bg-secondary">{{ ucfirst($booking->status) }}</span>
-                            @endif
-                        </div>
+                        @endforeach
                     </div>
-                    @endforeach
                 @else
                     <div class="text-center py-3">
                         <i class="bi bi-calendar-x text-muted" style="font-size: 2rem;"></i>
@@ -312,4 +349,77 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Revenue Chart
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    
+    const chartData = @json($chartData);
+    
+    const revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                {
+                    label: 'Total Pendapatan',
+                    data: chartData.total_revenue,
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Komisi Admin (30%)',
+                    data: chartData.admin_commission,
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false
+                },
+                {
+                    label: 'Bagian Pemilik (70%)',
+                    data: chartData.owner_share,
+                    borderColor: 'rgb(249, 115, 22)',
+                    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                    borderWidth: 2,
+                    borderDash: [10, 5],
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'Rp ' + value.toLocaleString('id-ID');
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': Rp ' + context.parsed.y.toLocaleString('id-ID');
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
 @endsection

@@ -450,6 +450,12 @@
                         Riwayat Pembayaran
                     </a>
                 </div>
+                <div class="menu-item">
+                    <a href="{{ route('penyewa.reports') }}" class="menu-link {{ request()->routeIs('penyewa.reports*') ? 'active' : '' }}">
+                        <i class="bi bi-file-text"></i>
+                        Laporan
+                    </a>
+                </div>
             @elseif(Auth::user()->role === 'admin')
                 <div class="menu-label">Menu Utama</div>
                 <div class="menu-item">
@@ -474,6 +480,12 @@
                     <a href="{{ route('admin.bookings') }}" class="menu-link {{ request()->routeIs('admin.bookings*') ? 'active' : '' }}">
                         <i class="bi bi-calendar-check"></i>
                         Kelola Pemesanan
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{{ route('admin.payments') }}" class="menu-link {{ request()->routeIs('admin.payments*') ? 'active' : '' }}">
+                        <i class="bi bi-credit-card"></i>
+                        Verifikasi Pembayaran
                     </a>
                 </div>
                 <div class="menu-item">
@@ -521,5 +533,11 @@
     
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom Styles Stack -->
+    @stack('styles')
+    
+    <!-- Custom Scripts Stack -->
+    @stack('scripts')
 </body>
 </html>

@@ -18,11 +18,25 @@ class PemilikController extends Controller
     // Middleware akan didefinisikan di routes
 
     /**
+     * Check if the current user is verified
+     */
+    private function checkUserVerification()
+    {
+        $user = Auth::user();
+        if (!$user->isVerified()) {
+            return redirect()->route('pemilik.dashboard')
+                ->withErrors(['verification' => 'Akun Anda belum diverifikasi. Silakan tunggu admin memverifikasi akun Anda sebelum dapat mendaftarkan motor.']);
+        }
+        return null;
+    }
+
+    /**
      * Dashboard untuk pemilik motor
      */
     public function dashboard()
     {
         $user = Auth::user();
+        $isVerified = $user->isVerified();
         
         // Statistik untuk pemilik
         $totalMotors = Motor::where('owner_id', $user->id)->count();
@@ -64,7 +78,8 @@ class PemilikController extends Controller
             'rentedMotors',
             'totalRevenue',
             'recentMotors',
-            'recentBookings'
+            'recentBookings',
+            'isVerified'
         ));
     }
 
@@ -73,6 +88,8 @@ class PemilikController extends Controller
      */
     public function motors(Request $request)
     {
+        $isVerified = Auth::user()->isVerified();
+        
         $query = Motor::where('owner_id', Auth::id())
             ->with('rentalRate');
 
@@ -83,7 +100,7 @@ class PemilikController extends Controller
 
         $motors = $query->orderBy('created_at', 'desc')->paginate(10);
 
-        return view('pemilik.motors', compact('motors'));
+        return view('pemilik.motors', compact('motors', 'isVerified'));
     }
 
     /**
@@ -91,6 +108,12 @@ class PemilikController extends Controller
      */
     public function createMotor()
     {
+        // Check user verification
+        $verificationCheck = $this->checkUserVerification();
+        if ($verificationCheck) {
+            return $verificationCheck;
+        }
+
         return view('pemilik.motor-create');
     }
 
@@ -99,54 +122,55 @@ class PemilikController extends Controller
      */
     public function storeMotor(Request $request)
     {
+        // Check user verification
+        $verificationCheck = $this->checkUserVerification();
+        if ($verificationCheck) {
+            return $verificationCheck;
+        }
+
         $request->validate([
             'brand' => 'required|string|max:100',
+            'model' => 'required|string|max:100',
             'type_cc' => 'required|string|in:100cc,125cc,150cc,250cc,500cc',
+            'year' => 'required|integer|min:2010|max:' . date('Y'),
+            'color' => 'required|string|max:50',
             'plate_number' => 'required|string|max:20|unique:motors',
             'description' => 'nullable|string|max:1000',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'daily_rate' => 'required|string',
-            'weekly_rate' => 'nullable|string',
-            'monthly_rate' => 'nullable|string'
+            'document' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
         ]);
 
-        // Convert string prices to integers
-        $dailyRate = (int) preg_replace('/[^0-9]/', '', $request->daily_rate);
-        $weeklyRate = $request->weekly_rate ? (int) preg_replace('/[^0-9]/', '', $request->weekly_rate) : ($dailyRate * 6);
-        $monthlyRate = $request->monthly_rate ? (int) preg_replace('/[^0-9]/', '', $request->monthly_rate) : ($dailyRate * 20);
-
-        // Validate minimum rates
-        if ($dailyRate < 10000) {
-            return back()->withErrors(['daily_rate' => 'Tarif harian minimal Rp 10.000'])->withInput();
-        }
-
-        // Upload gambar
+        // Upload gambar motor
         $photoPath = null;
         if ($request->hasFile('photo')) {
             $photoPath = $request->file('photo')->store('motors', 'public');
         }
 
-        // Buat motor
+        // Upload dokumen motor
+        $documentPath = null;
+        if ($request->hasFile('document')) {
+            $documentPath = $request->file('document')->store('motor-documents', 'public');
+        }
+
+        // Buat motor (tanpa harga sewa - akan diset oleh admin)
         $motor = Motor::create([
             'owner_id' => Auth::id(),
             'brand' => $request->brand,
+            'model' => $request->model,
             'type_cc' => $request->type_cc,
+            'year' => $request->year,
+            'color' => $request->color,
             'plate_number' => strtoupper($request->plate_number),
             'description' => $request->description,
             'photo' => $photoPath,
+            'document' => $documentPath,
             'status' => 'pending_verification' // Menunggu verifikasi admin
         ]);
 
-        // Buat rental rate
-        RentalRate::create([
-            'motor_id' => $motor->id,
-            'daily_rate' => $dailyRate,
-            'weekly_rate' => $weeklyRate,
-            'monthly_rate' => $monthlyRate
-        ]);
+        // Note: Harga sewa akan diset oleh admin saat verifikasi
 
         return redirect()->route('pemilik.motors')
-            ->with('success', 'Motor berhasil didaftarkan! Menunggu verifikasi admin untuk dapat disewakan.');
+            ->with('success', 'Motor berhasil didaftarkan! Menunggu verifikasi admin dan penetapan harga sewa.');
     }
 
     /**
@@ -200,6 +224,12 @@ class PemilikController extends Controller
      */
     public function editMotor($id)
     {
+        // Check user verification
+        $verificationCheck = $this->checkUserVerification();
+        if ($verificationCheck) {
+            return $verificationCheck;
+        }
+
         Log::info('EditMotor called with ID: ' . $id . ' by user: ' . Auth::id());
         
         $motor = Motor::where('owner_id', Auth::id())
@@ -216,29 +246,26 @@ class PemilikController extends Controller
      */
     public function updateMotor(Request $request, $id)
     {
+        // Check user verification
+        $verificationCheck = $this->checkUserVerification();
+        if ($verificationCheck) {
+            return $verificationCheck;
+        }
+
         $motor = Motor::where('owner_id', Auth::id())
             ->findOrFail($id);
 
         $request->validate([
             'brand' => 'required|string|max:100',
+            'model' => 'required|string|max:100',
             'type_cc' => 'required|string|in:100cc,125cc,150cc,250cc,500cc',
+            'year' => 'required|integer|min:2010|max:' . date('Y'),
+            'color' => 'required|string|max:50',
             'plate_number' => 'required|string|max:20|unique:motors,plate_number,' . $motor->id,
             'description' => 'nullable|string|max:1000',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'daily_rate' => 'required|string',
-            'weekly_rate' => 'nullable|string',
-            'monthly_rate' => 'nullable|string'
+            'document' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
         ]);
-
-        // Convert string prices to integers
-        $dailyRate = (int) preg_replace('/[^0-9]/', '', $request->daily_rate);
-        $weeklyRate = $request->weekly_rate ? (int) preg_replace('/[^0-9]/', '', $request->weekly_rate) : ($dailyRate * 6);
-        $monthlyRate = $request->monthly_rate ? (int) preg_replace('/[^0-9]/', '', $request->monthly_rate) : ($dailyRate * 20);
-
-        // Validate minimum rates
-        if ($dailyRate < 10000) {
-            return back()->withErrors(['daily_rate' => 'Tarif harian minimal Rp 10.000'])->withInput();
-        }
 
         // Upload gambar jika ada
         $photoPath = $motor->photo;
@@ -250,25 +277,29 @@ class PemilikController extends Controller
             $photoPath = $request->file('photo')->store('motors', 'public');
         }
 
+        // Upload dokumen jika ada
+        $documentPath = $motor->document;
+        if ($request->hasFile('document')) {
+            // Hapus dokumen lama jika ada
+            if ($motor->document && Storage::disk('public')->exists($motor->document)) {
+                Storage::disk('public')->delete($motor->document);
+            }
+            $documentPath = $request->file('document')->store('motor-documents', 'public');
+        }
+
         // Update motor
         $motor->update([
             'brand' => $request->brand,
+            'model' => $request->model,
             'type_cc' => $request->type_cc,
+            'year' => $request->year,
+            'color' => $request->color,
             'plate_number' => strtoupper($request->plate_number),
             'description' => $request->description,
             'photo' => $photoPath,
-            'status' => 'pending_verification' // Reset status untuk verifikasi ulang
+            'document' => $documentPath,
+            'status' => 'pending_verification'
         ]);
-
-        // Update rental rate
-        $motor->rentalRate()->updateOrCreate(
-            ['motor_id' => $motor->id],
-            [
-                'daily_rate' => $dailyRate,
-                'weekly_rate' => $weeklyRate,
-                'monthly_rate' => $monthlyRate
-            ]
-        );
 
         return redirect()->route('pemilik.motors')
             ->with('success', 'Motor berhasil diperbarui! Menunggu verifikasi ulang dari admin.');
@@ -279,6 +310,12 @@ class PemilikController extends Controller
      */
     public function deleteMotor($id)
     {
+        // Check user verification
+        $verificationCheck = $this->checkUserVerification();
+        if ($verificationCheck) {
+            return $verificationCheck;
+        }
+
         Log::info('DeleteMotor called with ID: ' . $id . ' by user: ' . Auth::id());
         
         $motor = Motor::where('owner_id', Auth::id())
@@ -299,6 +336,11 @@ class PemilikController extends Controller
         // Hapus foto jika ada
         if ($motor->photo && Storage::disk('public')->exists($motor->photo)) {
             Storage::disk('public')->delete($motor->photo);
+        }
+
+        // Hapus dokumen jika ada
+        if ($motor->document && Storage::disk('public')->exists($motor->document)) {
+            Storage::disk('public')->delete($motor->document);
         }
 
         // Hapus rental rate
@@ -522,8 +564,8 @@ class PemilikController extends Controller
 
             // Create revenue sharing record
             $totalAmount = $booking->price;
-            $ownerAmount = $totalAmount * 0.9; // 90% untuk pemilik
-            $adminCommission = $totalAmount * 0.1; // 10% untuk admin
+            $ownerAmount = $totalAmount * 0.7; // 70% untuk pemilik
+            $adminCommission = $totalAmount * 0.3; // 30% untuk admin
 
             RevenueSharing::create([
                 'booking_id' => $booking->id,

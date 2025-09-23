@@ -15,22 +15,27 @@ class MotorSeeder extends Seeder
      */
     public function run(): void
     {
-        // Ambil pemilik motor
-        $pemilik1 = User::where('email', 'budi@gmail.com')->first();
-        $pemilik2 = User::where('email', 'sari@gmail.com')->first();
-        $pemilik3 = User::where('email', 'ahmad@gmail.com')->first();
-        $pemilik4 = User::where('email', 'dewi@gmail.com')->first();
+        // Ambil pemilik motor dari user yang ada
+        $pemilik = User::where('email', 'pemilik@gmail.com')->first();
+        $admin = User::where('email', 'admin@fannrental.com')->first();
 
-        // Motor untuk Budi Santoso
+        if (!$pemilik || !$admin) {
+            return; // Skip jika user tidak ada
+        }
+
+        // Motor 1 - Honda Vario
         $motor1 = Motor::create([
-            'owner_id' => $pemilik1->id,
-            'brand' => 'Honda Vario 125',
-            'cc' => 125,
+            'owner_id' => $pemilik->id,
+            'brand' => 'Honda',
+            'model' => 'Vario 125',
+            'type_cc' => '125cc',
+            'year' => '2022',
+            'color' => 'Hitam',
             'plate_number' => 'B 1234 ABC',
             'description' => 'Motor matic Honda Vario 125 tahun 2022, kondisi terawat dan siap pakai untuk perjalanan dalam kota.',
             'photo' => null,
             'status' => 'available',
-            'verified_by' => 1,
+            'verified_by' => $admin->id,
             'verified_at' => now(),
         ]);
 
@@ -41,15 +46,19 @@ class MotorSeeder extends Seeder
             'monthly_rate' => 2000000,
         ]);
 
+        // Motor 2 - Yamaha NMAX
         $motor2 = Motor::create([
-            'owner_id' => $pemilik1->id,
-            'brand' => 'Yamaha NMAX 155',
-            'cc' => 150,
+            'owner_id' => $pemilik->id,
+            'brand' => 'Yamaha',
+            'model' => 'NMAX 155',
+            'type_cc' => '150cc',
+            'year' => '2023',
+            'color' => 'Putih',
             'plate_number' => 'B 5678 DEF',
             'description' => 'Yamaha NMAX 155 terbaru dengan fitur lengkap dan nyaman untuk perjalanan jauh.',
             'photo' => null,
             'status' => 'available',
-            'verified_by' => 1,
+            'verified_by' => $admin->id,
             'verified_at' => now(),
         ]);
 
@@ -60,16 +69,19 @@ class MotorSeeder extends Seeder
             'monthly_rate' => 2700000,
         ]);
 
-        // Motor untuk Sari Puspita
+        // Motor 3 - Honda Beat
         $motor3 = Motor::create([
-            'owner_id' => $pemilik2->id,
-            'brand' => 'Honda Beat 110',
-            'cc' => 100,
+            'owner_id' => $pemilik->id,
+            'brand' => 'Honda',
+            'model' => 'Beat 110',
+            'type_cc' => '100cc',
+            'year' => '2021',
+            'color' => 'Merah',
             'plate_number' => 'B 9012 GHI',
-            'description' => 'Honda Beat 110 warna putih, irit bensin dan mudah dikendarai untuk pemula.',
+            'description' => 'Honda Beat 110 warna merah, irit bensin dan mudah dikendarai untuk pemula.',
             'photo' => null,
             'status' => 'available',
-            'verified_by' => 1,
+            'verified_by' => $admin->id,
             'verified_at' => now(),
         ]);
 
@@ -80,15 +92,19 @@ class MotorSeeder extends Seeder
             'monthly_rate' => 1700000,
         ]);
 
+        // Motor 4 - Yamaha Mio
         $motor4 = Motor::create([
-            'owner_id' => $pemilik2->id,
-            'brand' => 'Yamaha Mio S 125',
-            'cc' => 125,
+            'owner_id' => $pemilik->id,
+            'brand' => 'Yamaha',
+            'model' => 'Mio S',
+            'type_cc' => '125cc',
+            'year' => '2022',
+            'color' => 'Biru',
             'plate_number' => 'B 3456 JKL',
             'description' => 'Yamaha Mio S 125 stylish dengan desain sporty dan performa handal.',
             'photo' => null,
             'status' => 'available',
-            'verified_by' => 1,
+            'verified_by' => $admin->id,
             'verified_at' => now(),
         ]);
 
@@ -99,99 +115,28 @@ class MotorSeeder extends Seeder
             'monthly_rate' => 2200000,
         ]);
 
-        // Motor untuk Ahmad Hidayat
-        $motor5 = Motor::create([
-            'owner_id' => $pemilik3->id,
-            'brand' => 'Honda PCX 160',
-            'cc' => 150,
-            'plate_number' => 'B 7890 MNO',
-            'description' => 'Honda PCX 160 premium dengan fitur canggih dan kenyamanan berkendara maksimal.',
-            'photo' => null,
-            'status' => 'available',
-            'verified_by' => 1,
-            'verified_at' => now(),
-        ]);
-
-        RentalRate::create([
-            'motor_id' => $motor5->id,
-            'daily_rate' => 110000,
-            'weekly_rate' => 750000,
-            'monthly_rate' => 3000000,
-        ]);
-
-        $motor6 = Motor::create([
-            'owner_id' => $pemilik3->id,
-            'brand' => 'Suzuki Address 110',
-            'cc' => 100,
-            'plate_number' => 'B 2468 PQR',
-            'description' => 'Suzuki Address 110 dengan bagasi luas, cocok untuk keperluan belanja atau kerja.',
-            'photo' => null,
-            'status' => 'available',
-            'verified_by' => 1,
-            'verified_at' => now(),
-        ]);
-
-        RentalRate::create([
-            'motor_id' => $motor6->id,
-            'daily_rate' => 70000,
-            'weekly_rate' => 470000,
-            'monthly_rate' => 1900000,
-        ]);
-
-        // Motor untuk Dewi Lestari
-        $motor7 = Motor::create([
-            'owner_id' => $pemilik4->id,
-            'brand' => 'Yamaha Aerox 155',
-            'cc' => 150,
-            'plate_number' => 'B 1357 STU',
-            'description' => 'Yamaha Aerox 155 sporty dengan performa tinggi dan tampilan agresif.',
-            'photo' => null,
-            'status' => 'available',
-            'verified_by' => 1,
-            'verified_at' => now(),
-        ]);
-
-        RentalRate::create([
-            'motor_id' => $motor7->id,
-            'daily_rate' => 100000,
-            'weekly_rate' => 680000,
-            'monthly_rate' => 2800000,
-        ]);
-
-        $motor8 = Motor::create([
-            'owner_id' => $pemilik4->id,
-            'brand' => 'Honda Genio 110',
-            'cc' => 100,
-            'plate_number' => 'B 9753 VWX',
-            'description' => 'Honda Genio 110 retro modern dengan desain unik dan konsumsi BBM efisien.',
-            'photo' => null,
-            'status' => 'available',
-            'verified_by' => 1,
-            'verified_at' => now(),
-        ]);
-
-        RentalRate::create([
-            'motor_id' => $motor8->id,
-            'daily_rate' => 68000,
-            'weekly_rate' => 450000,
-            'monthly_rate' => 1800000,
-        ]);
-
-        // Motor pending verifikasi
+        // Motor 5 - Motor pending verifikasi
         Motor::create([
-            'owner_id' => $pemilik4->id,
-            'brand' => 'Honda Scoopy 110',
-            'cc' => 100,
+            'owner_id' => $pemilik->id,
+            'brand' => 'Honda',
+            'model' => 'Scoopy',
+            'type_cc' => '100cc',
+            'year' => '2023',
+            'color' => 'Pink',
             'plate_number' => 'B 8642 YZA',
             'description' => 'Honda Scoopy 110 warna pink, stylish dan cocok untuk wanita muda.',
             'photo' => null,
             'status' => 'pending_verification',
         ]);
 
+        // Motor 6 - Motor pending verifikasi
         Motor::create([
-            'owner_id' => $pemilik3->id,
-            'brand' => 'Yamaha Fino 125',
-            'cc' => 125,
+            'owner_id' => $pemilik->id,
+            'brand' => 'Yamaha',
+            'model' => 'Fino',
+            'type_cc' => '125cc',
+            'year' => '2022',
+            'color' => 'Kuning',
             'plate_number' => 'B 1973 BCD',
             'description' => 'Yamaha Fino 125 bergaya vintage dengan sentuhan modern.',
             'photo' => null,

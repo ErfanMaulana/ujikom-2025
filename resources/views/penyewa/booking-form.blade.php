@@ -182,6 +182,11 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Availability Status -->
+                        <div class="mt-3" id="availability-status">
+                            <!-- Availability check result will be shown here -->
+                        </div>
                     </div>
                     
                     <div class="d-flex justify-content-between">
@@ -235,7 +240,7 @@
                         <div class="mb-2">
                             <div class="d-flex justify-content-between">
                                 <span>Harian:</span>
-                                <span class="fw-bold">Rp {{ number_format($motor->rentalRate->daily_rate, 0, ',', '.') }}</span>
+                                <span class="fw-bold">Rp {{ number_format((float)$motor->rentalRate->daily_rate, 0, ',', '.') }}</span>
                             </div>
                         </div>
                         <div class="mb-2">
@@ -477,6 +482,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (step === 4) {
             updateSummary();
+            // Check availability when showing summary
+            setTimeout(checkAvailability, 100);
         }
     }
     
@@ -509,6 +516,101 @@ document.addEventListener('DOMContentLoaded', function() {
                 new Date(endDate).toLocaleDateString('id-ID');
         }
     }
+    
+    // Availability checking function
+    function checkAvailability() {
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('hidden_end_date').value;
+        const motorId = document.querySelector('input[name="motor_id"]').value;
+        
+        if (!startDate || !endDate) return;
+        
+        // Show loading
+        const availabilityDiv = document.getElementById('availability-status');
+        if (availabilityDiv) {
+            availabilityDiv.innerHTML = '<div class="text-info"><i class="bi bi-hourglass-split me-2"></i>Mengecek ketersediaan...</div>';
+        }
+        
+        fetch('{{ route("penyewa.booking.check-availability") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                motor_id: motorId,
+                start_date: startDate,
+                end_date: endDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            displayAvailabilityStatus(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (availabilityDiv) {
+                availabilityDiv.innerHTML = '<div class="text-warning"><i class="bi bi-exclamation-triangle me-2"></i>Gagal mengecek ketersediaan</div>';
+            }
+        });
+    }
+    
+    function displayAvailabilityStatus(data) {
+        const availabilityDiv = document.getElementById('availability-status');
+        const submitBtn = document.getElementById('btn-submit');
+        
+        if (!availabilityDiv) return;
+        
+        if (data.available) {
+            availabilityDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Motor Tersedia!</strong><br>
+                    ${data.message}
+                </div>
+            `;
+            submitBtn.disabled = false;
+        } else {
+            let conflictInfo = '';
+            if (data.conflicts && data.conflicts.length > 0) {
+                conflictInfo = '<br><small>Sudah disewa: ';
+                data.conflicts.forEach((conflict, index) => {
+                    if (index > 0) conflictInfo += ', ';
+                    conflictInfo += `${conflict.start_date} - ${conflict.end_date}`;
+                });
+                conflictInfo += '</small>';
+            }
+            
+            availabilityDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle me-2"></i>
+                    <strong>Motor Tidak Tersedia!</strong><br>
+                    ${data.message}${conflictInfo}
+                    <br><small class="text-muted">Tersedia kembali: ${data.next_available_formatted}</small>
+                </div>
+            `;
+            submitBtn.disabled = true;
+        }
+    }
+    
+    // Add event listener for date changes to check availability
+    document.getElementById('start_date').addEventListener('change', function() {
+        const startDate = new Date(this.value);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + selectedDuration - 1);
+        
+        document.getElementById('end_date_display').value = endDate.toISOString().split('T')[0];
+        document.getElementById('hidden_start_date').value = this.value;
+        document.getElementById('hidden_end_date').value = endDate.toISOString().split('T')[0];
+        
+        if (this.value) {
+            btnNext.classList.remove('d-none');
+            // Check availability when date is selected
+            setTimeout(checkAvailability, 500); // Delay to ensure end date is set
+        }
+        
+        updateSummary();
+    });
 });
 </script>
 @endsection

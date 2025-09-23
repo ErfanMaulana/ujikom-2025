@@ -96,7 +96,7 @@
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h4>90%</h4>
+                                        <h4>70%</h4>
                                         <p class="mb-0">Bagi Hasil untuk Anda</p>
                                     </div>
                                     <i class="bi bi-percent fs-1"></i>
@@ -146,11 +146,11 @@
                                     </td>
                                     <td>
                                         <span class="fw-bold text-success">Rp {{ number_format($revenue->owner_amount, 0, ',', '.') }}</span>
-                                        <br><small class="text-muted">90% dari total</small>
+                                        <br><small class="text-muted">70% dari total</small>
                                     </td>
                                     <td>
                                         <span class="text-muted">Rp {{ number_format($revenue->admin_commission, 0, ',', '.') }}</span>
-                                        <br><small class="text-muted">10% komisi</small>
+                                        <br><small class="text-muted">30% komisi</small>
                                     </td>
                                     <td>
                                         <span class="badge bg-success">Selesai</span>
@@ -200,11 +200,11 @@
                         <ul class="list-unstyled mb-0">
                             <li class="mb-2">
                                 <i class="bi bi-check-circle text-success me-2"></i>
-                                Anda mendapat <strong>90%</strong> dari setiap booking yang selesai
+                                Anda mendapat <strong>70%</strong> dari setiap booking yang selesai
                             </li>
                             <li class="mb-2">
                                 <i class="bi bi-check-circle text-success me-2"></i>
-                                Admin mendapat <strong>10%</strong> sebagai komisi platform
+                                Admin mendapat <strong>30%</strong> sebagai komisi platform
                             </li>
                         </ul>
                     </div>

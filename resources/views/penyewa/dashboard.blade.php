@@ -9,6 +9,37 @@
     <p>Temukan dan sewa motor impian Anda dengan mudah</p>
 </div>
 
+<!-- Verification Status Alert -->
+@if(!$isVerified)
+<div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-exclamation-triangle-fill me-3" style="font-size: 1.5rem;"></i>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading mb-1">Akun Belum Diverifikasi</h5>
+            <p class="mb-0">
+                Akun Anda masih dalam proses verifikasi oleh admin. 
+                Anda <strong>belum dapat menyewa motor</strong> hingga akun diverifikasi.
+                Silakan tunggu atau hubungi admin untuk informasi lebih lanjut.
+            </p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+@else
+<div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-check-circle-fill me-3" style="font-size: 1.5rem;"></i>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading mb-1">Akun Terverifikasi</h5>
+            <p class="mb-0">
+                Selamat! Akun Anda sudah terverifikasi dan Anda dapat menyewa motor.
+            </p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+@endif
+
 <!-- Statistics Cards -->
 <div class="row mb-4">
     <div class="col-lg-3 col-md-6 mb-4">
