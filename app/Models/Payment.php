@@ -63,17 +63,30 @@ class Payment extends Model
 
     public function getFormattedMethodAttribute()
     {
-        return ucwords(str_replace('_', ' ', $this->method));
+        $methods = [
+            'bank_transfer' => 'Transfer Bank',
+            'transfer_bank' => 'Transfer Bank',
+            'e_wallet' => 'E-Wallet',
+            'cash' => 'Cash/Tunai',
+            'credit_card' => 'Kartu Kredit'
+        ];
+        
+        return $methods[$this->method] ?? ucwords(str_replace('_', ' ', $this->method));
     }
 
     public function getFormattedPaymentMethodAttribute()
     {
         $methods = [
+            'bank_transfer' => 'Transfer Bank',
             'transfer_bank' => 'Transfer Bank',
             'e_wallet' => 'E-Wallet',
-            'cash' => 'Cash'
+            'cash' => 'Cash/Tunai',
+            'credit_card' => 'Kartu Kredit'
         ];
-        return $methods[$this->payment_method] ?? $this->payment_method;
+        
+        // Use 'method' field as primary, fallback to 'payment_method'
+        $paymentMethod = $this->method ?? $this->payment_method;
+        return $methods[$paymentMethod] ?? ucwords(str_replace('_', ' ', $paymentMethod));
     }
 
     public function getPaymentProofUrlAttribute()

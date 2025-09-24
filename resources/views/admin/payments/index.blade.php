@@ -104,7 +104,7 @@
                 <label for="payment_method" class="form-label">Metode Pembayaran</label>
                 <select class="form-select" id="payment_method" name="payment_method">
                     <option value="">Semua Metode</option>
-                    <option value="transfer_bank" {{ request('payment_method') === 'transfer_bank' ? 'selected' : '' }}>
+                    <option value="bank_transfer" {{ request('payment_method') === 'bank_transfer' ? 'selected' : '' }}>
                         Transfer Bank
                     </option>
                     <option value="e_wallet" {{ request('payment_method') === 'e_wallet' ? 'selected' : '' }}>

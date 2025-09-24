@@ -144,7 +144,27 @@
                                     </td>
                                     <td>
                                         @if($motor->is_verified)
-                                            <span class="badge bg-success">Terverifikasi</span>
+                                            @php
+                                                $currentStatus = $motor->getCurrentStatus();
+                                                $currentBooking = $motor->getCurrentBooking();
+                                            @endphp
+                                            
+                                            @if($currentStatus === 'rented')
+                                                <span class="badge bg-warning text-dark" title="Sedang disewa">
+                                                    <i class="bi bi-person-check me-1"></i>Disewa
+                                                </span>
+                                                @if($currentBooking)
+                                                    <br><small class="text-muted">{{ $currentBooking->renter->name }}</small>
+                                                @endif
+                                            @elseif($currentStatus === 'available')
+                                                <span class="badge bg-success" title="Tersedia untuk disewa">
+                                                    <i class="bi bi-check-circle me-1"></i>Tersedia
+                                                </span>
+                                            @elseif($currentStatus === 'maintenance')
+                                                <span class="badge bg-secondary" title="Dalam maintenance">
+                                                    <i class="bi bi-tools me-1"></i>Maintenance
+                                                </span>
+                                            @endif
                                         @else
                                             <span class="badge bg-warning">Menunggu Verifikasi</span>
                                         @endif

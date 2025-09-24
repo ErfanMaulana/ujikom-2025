@@ -72,6 +72,55 @@ class Motor extends Model
         return $this->status === 'rented';
     }
 
+    /**
+     * Check if motor is currently rented based on active bookings (realtime)
+     */
+    public function isCurrentlyRented()
+    {
+        return $this->bookings()
+            ->where('status', 'confirmed')
+            ->where('start_date', '<=', now()->format('Y-m-d'))
+            ->where('end_date', '>=', now()->format('Y-m-d'))
+            ->exists();
+    }
+
+    /**
+     * Get current booking status (realtime)
+     */
+    public function getCurrentStatus()
+    {
+        // If motor is not verified, return as pending verification
+        if (!$this->isVerified()) {
+            return 'pending_verification';
+        }
+
+        // Check if motor has active booking today
+        if ($this->isCurrentlyRented()) {
+            return 'rented';
+        }
+
+        // Check if motor is in maintenance
+        if ($this->status === 'maintenance') {
+            return 'maintenance';
+        }
+
+        // Otherwise, available
+        return 'available';
+    }
+
+    /**
+     * Get current booking if any
+     */
+    public function getCurrentBooking()
+    {
+        return $this->bookings()
+            ->where('status', 'confirmed')
+            ->where('start_date', '<=', now()->format('Y-m-d'))
+            ->where('end_date', '>=', now()->format('Y-m-d'))
+            ->with(['renter'])
+            ->first();
+    }
+
     public function isVerified()
     {
         return !is_null($this->verified_at);

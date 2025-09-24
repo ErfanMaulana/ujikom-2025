@@ -148,10 +148,30 @@
                     <h6 class="mb-0"><i class="bi bi-currency-dollar me-2"></i>Harga Sewa</h6>
                 </div>
                 <div class="card-body">
-                    <div class="text-center mb-3">
-                        <h6>Harian</h6>
-                        <h4 class="text-primary">Rp {{ number_format($motor->rentalRate->daily_rate, 0, ',', '.') }}</h4>
-                        <small class="text-muted">per hari</small>
+                    <div class="row text-center">
+                        <div class="col-12 mb-3">
+                            <div class="text-center">
+                                <h6>Harian</h6>
+                                <h4 class="text-primary">Rp {{ number_format((float)$motor->rentalRate->daily_rate, 0, ',', '.') }}</h4>
+                                <small class="text-muted">per hari</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6>Mingguan</h6>
+                                <h5 class="text-info">Rp {{ number_format((float)$motor->rentalRate->daily_rate * 7 * 0.9, 0, ',', '.') }}</h5>
+                                <small class="text-muted">per minggu</small>
+                                <br><small class="text-success">Diskon 10%</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6>Bulanan</h6>
+                                <h5 class="text-warning">Rp {{ number_format((float)$motor->rentalRate->daily_rate * 30 * 0.8, 0, ',', '.') }}</h5>
+                                <small class="text-muted">per bulan</small>
+                                <br><small class="text-success">Diskon 20%</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

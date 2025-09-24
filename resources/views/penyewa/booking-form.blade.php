@@ -341,6 +341,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Package selection
     packageCards.forEach(card => {
         card.addEventListener('click', function() {
+            console.log('Step 1: Package selected:', this.dataset.package);
+            
             // Remove previous selection
             packageCards.forEach(c => c.classList.remove('selected'));
             
@@ -350,6 +352,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Update hidden field
             document.getElementById('hidden_package_type').value = selectedPackage;
+            
+            console.log('Hidden package type updated:', selectedPackage);
             
             // Show duration step
             showDurationOptions(selectedPackage);
@@ -396,12 +400,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add event listeners to duration cards
         document.querySelectorAll('.duration-card').forEach(durationCard => {
             durationCard.addEventListener('click', function() {
+                console.log('Step 1.5: Duration selected:', this.dataset.days, 'days');
+                
                 // Remove previous selection
                 document.querySelectorAll('.duration-card').forEach(c => c.classList.remove('selected'));
                 
                 // Select current
                 this.classList.add('selected');
                 selectedDuration = parseInt(this.dataset.days);
+                
+                console.log('Selected duration updated:', selectedDuration);
                 
                 // Show next button
                 btnNext.classList.remove('d-none');
@@ -435,6 +443,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Date change
     document.getElementById('start_date').addEventListener('change', function() {
+        console.log('Step 2: Start date selected:', this.value);
+        
         const startDate = new Date(this.value);
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + selectedDuration - 1);
@@ -442,6 +452,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('end_date_display').value = endDate.toISOString().split('T')[0];
         document.getElementById('hidden_start_date').value = this.value;
         document.getElementById('hidden_end_date').value = endDate.toISOString().split('T')[0];
+        
+        console.log('Hidden dates updated:', {
+            start: this.value,
+            end: endDate.toISOString().split('T')[0]
+        });
         
         if (this.value) {
             btnNext.classList.remove('d-none');
@@ -451,6 +466,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function showStep(step) {
+        console.log('Showing step:', step);
+        
         // Hide all steps
         document.getElementById('step-package').classList.add('d-none');
         document.getElementById('step-duration').classList.add('d-none');
@@ -543,14 +560,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 end_date: endDate
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                // Try to get JSON error, fallback to text if it's HTML
+                return response.text().then(responseText => {
+                    console.log('Error response:', responseText);
+                    
+                    try {
+                        const errorData = JSON.parse(responseText);
+                        throw new Error(errorData.message || 'Gagal mengecek ketersediaan');
+                    } catch (parseError) {
+                        // Response is likely HTML error page
+                        if (responseText.includes('<html>')) {
+                            throw new Error('Server mengembalikan error page. Periksa console untuk detail.');
+                        }
+                        throw new Error('Response tidak valid dari server');
+                    }
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             displayAvailabilityStatus(data);
         })
         .catch(error => {
             console.error('Error:', error);
             if (availabilityDiv) {
-                availabilityDiv.innerHTML = '<div class="text-warning"><i class="bi bi-exclamation-triangle me-2"></i>Gagal mengecek ketersediaan</div>';
+                availabilityDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Error:</strong><br>
+                        ${error.message}
+                    </div>
+                `;
             }
         });
     }
@@ -586,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="bi bi-x-circle me-2"></i>
                     <strong>Motor Tidak Tersedia!</strong><br>
                     ${data.message}${conflictInfo}
-                    <br><small class="text-muted">Tersedia kembali: ${data.next_available_formatted}</small>
+                    ${data.next_available_formatted ? `<br><small class="text-muted">Tersedia kembali: ${data.next_available_formatted}</small>` : ''}
                 </div>
             `;
             submitBtn.disabled = true;
@@ -610,6 +654,62 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         updateSummary();
+    });
+
+    // Add form validation before submit
+    document.querySelector('form').addEventListener('submit', function(e) {
+        console.log('Form submit triggered');
+        
+        // Validate required hidden fields
+        const motorId = document.getElementById('hidden_motor_id') || document.querySelector('input[name="motor_id"]');
+        const startDate = document.getElementById('hidden_start_date');
+        const endDate = document.getElementById('hidden_end_date');
+        const packageType = document.getElementById('hidden_package_type');
+        const csrfToken = document.querySelector('input[name="_token"]');
+        
+        const validationErrors = [];
+        
+        if (!motorId || !motorId.value) {
+            validationErrors.push('Motor ID tidak ditemukan');
+        }
+        
+        if (!startDate || !startDate.value) {
+            validationErrors.push('Tanggal mulai belum dipilih');
+        }
+        
+        if (!endDate || !endDate.value) {
+            validationErrors.push('Tanggal selesai belum dihitung');
+        }
+        
+        if (!packageType || !packageType.value) {
+            validationErrors.push('Tipe paket belum dipilih');
+        }
+        
+        if (!csrfToken || !csrfToken.value) {
+            validationErrors.push('CSRF token tidak ditemukan');
+        }
+        
+        if (validationErrors.length > 0) {
+            e.preventDefault();
+            console.error('Form validation errors:', validationErrors);
+            alert('Error: ' + validationErrors.join(', ') + '\n\nSilakan lengkapi semua langkah booking terlebih dahulu.');
+            return false;
+        }
+        
+        console.log('Form validation passed:', {
+            motor_id: motorId.value,
+            start_date: startDate.value,
+            end_date: endDate.value,
+            package_type: packageType.value,
+            csrf_token: csrfToken.value.substring(0, 10) + '...'
+        });
+        
+        // Show loading state
+        const submitBtn = document.getElementById('btn-submit');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
+            submitBtn.disabled = true;
+        }
     });
 });
 </script>

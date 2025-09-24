@@ -166,6 +166,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/notifications', [AdminController::class, 'getNotifications'])->name('notifications');
     Route::patch('/notifications/{id}/read', [AdminController::class, 'markNotificationAsRead'])->name('notifications.read');
     Route::patch('/notifications/mark-all-read', [AdminController::class, 'markAllNotificationsAsRead'])->name('notifications.mark-all-read');
+    
+    // Motor Status Management
+    Route::post('/motors/update-status-realtime', [AdminController::class, 'updateMotorStatusRealtime'])->name('motors.update-status-realtime');
+    Route::get('/motors/status-realtime', [AdminController::class, 'getMotorStatusRealtime'])->name('motors.status-realtime');
 });
 
 require __DIR__.'/auth.php';

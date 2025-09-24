@@ -71,10 +71,14 @@
                             <select class="form-select @error('type_cc') is-invalid @enderror" id="type_cc" name="type_cc" required>
                                 <option value="">Pilih CC</option>
                                 <option value="100cc" {{ old('type_cc') == '100cc' ? 'selected' : '' }}>100cc</option>
+                                <option value="110cc" {{ old('type_cc') == '110cc' ? 'selected' : '' }}>110cc</option>
                                 <option value="125cc" {{ old('type_cc') == '125cc' ? 'selected' : '' }}>125cc</option>
                                 <option value="150cc" {{ old('type_cc') == '150cc' ? 'selected' : '' }}>150cc</option>
+                                <option value="160cc" {{ old('type_cc') == '160cc' ? 'selected' : '' }}>160cc</option>
                                 <option value="250cc" {{ old('type_cc') == '250cc' ? 'selected' : '' }}>250cc</option>
+                                <option value="400cc" {{ old('type_cc') == '400cc' ? 'selected' : '' }}>400cc</option>
                                 <option value="500cc" {{ old('type_cc') == '500cc' ? 'selected' : '' }}>500cc</option>
+                                <option value="600cc" {{ old('type_cc') == '600cc' ? 'selected' : '' }}>600cc</option>
                             </select>
                             @error('type_cc')
                                 <div class="invalid-feedback">{{ $message }}</div>

@@ -9,8 +9,10 @@ use App\Models\RentalRate;
 use App\Models\RevenueSharing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Carbon\Carbon;
 
 class PemilikController extends Controller
@@ -23,7 +25,7 @@ class PemilikController extends Controller
     private function checkUserVerification()
     {
         $user = Auth::user();
-        if (!$user->isVerified()) {
+        if (!$user->verified_at || $user->status !== 'verified') {
             return redirect()->route('pemilik.dashboard')
                 ->withErrors(['verification' => 'Akun Anda belum diverifikasi. Silakan tunggu admin memverifikasi akun Anda sebelum dapat mendaftarkan motor.']);
         }
@@ -36,20 +38,20 @@ class PemilikController extends Controller
     public function dashboard()
     {
         $user = Auth::user();
-        $isVerified = $user->isVerified();
+        $isVerified = $user->verified_at && $user->status === 'verified';
         
-        // Statistik untuk pemilik
+        // Statistik untuk pemilik (realtime)
         $totalMotors = Motor::where('owner_id', $user->id)->count();
-        $availableMotors = Motor::where('owner_id', $user->id)
-            ->where('status', 'available')
-            ->count();
-        $rentedMotors = Motor::where('owner_id', $user->id)
-            ->whereHas('bookings', function($query) {
-                $query->where('status', 'confirmed')
-                      ->where('start_date', '<=', Carbon::now())
-                      ->where('end_date', '>=', Carbon::now());
-            })
-            ->count();
+        
+        // Hitung status realtime
+        $userMotors = Motor::where('owner_id', $user->id)->get();
+        $availableMotors = $userMotors->filter(function($motor) {
+            return $motor->getCurrentStatus() === 'available';
+        })->count();
+        
+        $rentedMotors = $userMotors->filter(function($motor) {
+            return $motor->getCurrentStatus() === 'rented';
+        })->count();
         
         $totalRevenue = RevenueSharing::whereHas('booking.motor', function($query) use ($user) {
                 $query->where('owner_id', $user->id);
@@ -88,7 +90,8 @@ class PemilikController extends Controller
      */
     public function motors(Request $request)
     {
-        $isVerified = Auth::user()->isVerified();
+        $user = Auth::user();
+        $isVerified = $user->verified_at && $user->status === 'verified';
         
         $query = Motor::where('owner_id', Auth::id())
             ->with('rentalRate');
@@ -131,8 +134,8 @@ class PemilikController extends Controller
         $request->validate([
             'brand' => 'required|string|max:100',
             'model' => 'required|string|max:100',
-            'type_cc' => 'required|string|in:100cc,125cc,150cc,250cc,500cc',
-            'year' => 'required|integer|min:2010|max:' . date('Y'),
+            'type_cc' => 'required|string|in:100cc,110cc,125cc,150cc,160cc,250cc,400cc,500cc,600cc',
+            'year' => 'required|integer|min:2000|max:' . date('Y'),
             'color' => 'required|string|max:50',
             'plate_number' => 'required|string|max:20|unique:motors',
             'description' => 'nullable|string|max:1000',
@@ -258,8 +261,8 @@ class PemilikController extends Controller
         $request->validate([
             'brand' => 'required|string|max:100',
             'model' => 'required|string|max:100',
-            'type_cc' => 'required|string|in:100cc,125cc,150cc,250cc,500cc',
-            'year' => 'required|integer|min:2010|max:' . date('Y'),
+            'type_cc' => 'required|string|in:100cc,110cc,125cc,150cc,160cc,250cc,400cc,500cc,600cc',
+            'year' => 'required|integer|min:2000|max:' . date('Y'),
             'color' => 'required|string|max:50',
             'plate_number' => 'required|string|max:20|unique:motors,plate_number,' . $motor->id,
             'description' => 'nullable|string|max:1000',
@@ -297,12 +300,11 @@ class PemilikController extends Controller
             'plate_number' => strtoupper($request->plate_number),
             'description' => $request->description,
             'photo' => $photoPath,
-            'document' => $documentPath,
-            'status' => 'pending_verification'
+            'document' => $documentPath
         ]);
 
         return redirect()->route('pemilik.motors')
-            ->with('success', 'Motor berhasil diperbarui! Menunggu verifikasi ulang dari admin.');
+            ->with('success', 'Motor berhasil diperbarui!');
     }
 
     /**
@@ -364,7 +366,7 @@ class PemilikController extends Controller
     {
         $query = Booking::whereHas('motor', function($q) {
             $q->where('owner_id', Auth::id());
-        })->with(['motor', 'renter', 'payment']);
+        })->with(['motor', 'user', 'payment']);
 
         // Filter berdasarkan status
         if ($request->has('status') && $request->status !== '') {
@@ -403,7 +405,7 @@ class PemilikController extends Controller
         // Base query for paginated results
         $paginatedQuery = RevenueSharing::whereHas('booking.motor', function($q) {
             $q->where('owner_id', Auth::id());
-        })->with(['booking.motor', 'booking.renter']);
+        })->with(['booking.motor', 'booking.user']);
 
         // Apply filters to both queries
         if ($request->has('month') && $request->month !== '') {
@@ -438,7 +440,7 @@ class PemilikController extends Controller
      */
     public function getBookingDetail($id)
     {
-        $booking = Booking::with(['motor', 'renter', 'payment'])
+        $booking = Booking::with(['motor', 'user', 'payment'])
             ->whereHas('motor', function($q) {
                 $q->where('owner_id', Auth::id());
             })
@@ -518,27 +520,93 @@ class PemilikController extends Controller
     public function activateBooking($id)
     {
         try {
-            $booking = Booking::whereHas('motor', function($q) {
-                $q->where('owner_id', Auth::id());
-            })->findOrFail($id);
+            // Enhanced logging for debugging
+            \Log::info("Activate booking attempt", [
+                'booking_id' => $id,
+                'user_id' => Auth::id(),
+                'timestamp' => now()
+            ]);
 
-            if ($booking->status !== 'confirmed') {
+            // Check if booking exists first
+            $bookingExists = Booking::find($id);
+            if (!$bookingExists) {
+                \Log::warning("Booking not found", ['booking_id' => $id]);
                 return response()->json([
                     'success' => false,
-                    'message' => 'Booking harus dikonfirmasi terlebih dahulu sebelum diaktifkan.'
+                    'message' => 'Booking tidak ditemukan.'
                 ]);
             }
 
-            $booking->update(['status' => 'active']);
+            // Check authorization - booking must belong to motor owned by current user
+            $booking = Booking::with('motor')->whereHas('motor', function($q) {
+                $q->where('owner_id', Auth::id());
+            })->find($id);
+
+            if (!$booking) {
+                \Log::warning("Authorization failed", [
+                    'booking_id' => $id,
+                    'user_id' => Auth::id(),
+                    'motor_owner_id' => $bookingExists->motor->owner_id ?? 'unknown'
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak berhak mengakses booking ini. Pastikan Anda adalah pemilik motor.'
+                ]);
+            }
+
+            // Check booking status
+            if ($booking->status !== 'confirmed') {
+                \Log::info("Invalid status for activation", [
+                    'booking_id' => $id,
+                    'current_status' => $booking->status,
+                    'required_status' => 'confirmed'
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => "Status booking saat ini: {$booking->status}. Booking harus dikonfirmasi terlebih dahulu sebelum diaktifkan."
+                ]);
+            }
+
+            // Update booking status
+            $updateResult = $booking->update(['status' => 'active']);
+            
+            if (!$updateResult) {
+                \Log::error("Failed to update booking status", ['booking_id' => $id]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengupdate status booking. Silakan coba lagi.'
+                ]);
+            }
+
+            \Log::info("Booking activated successfully", [
+                'booking_id' => $id,
+                'user_id' => Auth::id()
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Masa sewa berhasil dimulai.'
             ]);
-        } catch (\Exception $e) {
+
+        } catch (ModelNotFoundException $e) {
+            \Log::error("Booking not found exception", [
+                'booking_id' => $id,
+                'error' => $e->getMessage()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'message' => 'Booking tidak ditemukan atau Anda tidak memiliki akses.'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Activate booking exception", [
+                'booking_id' => $id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan sistem. Silakan coba lagi atau hubungi administrator.'
             ]);
         }
     }
@@ -562,18 +630,42 @@ class PemilikController extends Controller
 
             $booking->update(['status' => 'completed']);
 
-            // Create revenue sharing record
-            $totalAmount = $booking->price;
-            $ownerAmount = $totalAmount * 0.7; // 70% untuk pemilik
-            $adminCommission = $totalAmount * 0.3; // 30% untuk admin
+            // Update existing revenue sharing record to 'paid' status
+            $revenueSharing = RevenueSharing::where('booking_id', $booking->id)->first();
+            
+            if ($revenueSharing) {
+                // Update existing record to 'paid' status
+                $revenueSharing->update([
+                    'status' => 'paid',
+                    'settled_at' => now()
+                ]);
+                
+                \Log::info('Revenue sharing updated to paid', [
+                    'booking_id' => $booking->id,
+                    'revenue_sharing_id' => $revenueSharing->id
+                ]);
+            } else {
+                // Fallback: Create revenue sharing record if it doesn't exist
+                $totalAmount = $booking->price;
+                $ownerAmount = $totalAmount * 0.7; // 70% untuk pemilik
+                $adminCommission = $totalAmount * 0.3; // 30% untuk admin
 
-            RevenueSharing::create([
-                'booking_id' => $booking->id,
-                'owner_id' => $booking->motor->owner_id,
-                'total_amount' => $totalAmount,
-                'owner_amount' => $ownerAmount,
-                'admin_commission' => $adminCommission
-            ]);
+                RevenueSharing::create([
+                    'booking_id' => $booking->id,
+                    'owner_id' => $booking->motor->owner_id,
+                    'total_amount' => $totalAmount,
+                    'owner_amount' => $ownerAmount,
+                    'admin_commission' => $adminCommission,
+                    'owner_percentage' => 70.00,
+                    'admin_percentage' => 30.00,
+                    'status' => 'paid',
+                    'settled_at' => now()
+                ]);
+                
+                \Log::warning('Revenue sharing created at completion (should have been created at payment approval)', [
+                    'booking_id' => $booking->id
+                ]);
+            }
 
             return response()->json([
                 'success' => true,

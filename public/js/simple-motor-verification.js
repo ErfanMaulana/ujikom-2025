@@ -263,9 +263,9 @@ function showPricingModal(motorId) {
                                                id="weekly_rate" 
                                                name="weekly_rate"
                                                readonly
-                                               placeholder="Otomatis dihitung">
+                                               placeholder="Otomatis dengan diskon 10%">
                                     </div>
-                                    <div class="form-text text-success">Auto: 6x tarif harian</div>
+                                    <div class="form-text text-success">Auto: diskon 10% dari 7x tarif harian</div>
                                 </div>
                                 
                                 <div class="col-md-4 mb-3">
@@ -277,9 +277,9 @@ function showPricingModal(motorId) {
                                                id="monthly_rate" 
                                                name="monthly_rate"
                                                readonly
-                                               placeholder="Otomatis dihitung">
+                                               placeholder="Otomatis dengan diskon 20%">
                                     </div>
-                                    <div class="form-text text-success">Auto: 20x tarif harian</div>
+                                    <div class="form-text text-success">Auto: diskon 20% dari 30x tarif harian</div>
                                 </div>
                             </div>
                             
@@ -298,7 +298,7 @@ function showPricingModal(motorId) {
                                                 <li>Pertimbangkan kondisi, umur, dan brand motor</li>
                                             </ul>
                                             <div class="alert alert-warning py-2 mb-0">
-                                                <small><strong>Catatan:</strong> Tarif mingguan dan bulanan akan otomatis dihitung berdasarkan tarif harian (6x untuk mingguan, 20x untuk bulanan).</small>
+                                                <small><strong>Catatan:</strong> Tarif mingguan dan bulanan akan otomatis dihitung berdasarkan tarif harian (diskon 10% untuk mingguan, diskon 20% untuk bulanan).</small>
                                             </div>
                                         </div>
                                     </div>
@@ -366,12 +366,12 @@ function setupPricingCalculation() {
                 return;
             }
             
-            // Kalkulasi otomatis tarif mingguan (6x tarif harian)
-            const weeklyRate = dailyRate * 6;
+            // Kalkulasi otomatis tarif mingguan (diskon 10%)
+            const weeklyRate = Math.floor(dailyRate * 7 * 0.9);
             weeklyInput.value = weeklyRate;
             
-            // Kalkulasi otomatis tarif bulanan (20x tarif harian)
-            const monthlyRate = dailyRate * 20;
+            // Kalkulasi otomatis tarif bulanan (diskon 20%)
+            const monthlyRate = Math.floor(dailyRate * 30 * 0.8);
             monthlyInput.value = monthlyRate;
             
             console.log('Auto calculated:', {
@@ -412,8 +412,8 @@ function setupPricingCalculation() {
     });
     
     // Set placeholder yang jelas
-    weeklyInput.setAttribute('placeholder', 'Otomatis dari tarif harian');
-    monthlyInput.setAttribute('placeholder', 'Otomatis dari tarif harian');
+    weeklyInput.setAttribute('placeholder', 'Otomatis dengan diskon 10%');
+    monthlyInput.setAttribute('placeholder', 'Otomatis dengan diskon 20%');
     weeklyInput.setAttribute('readonly', 'true');
     monthlyInput.setAttribute('readonly', 'true');
 }

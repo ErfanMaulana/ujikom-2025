@@ -450,9 +450,9 @@ class MotorVerification {
                                                    id="weekly_rate" 
                                                    name="weekly_rate"
                                                    readonly
-                                                   placeholder="Otomatis dihitung">
+                                                   placeholder="Otomatis dengan diskon 10%">
                                         </div>
-                                        <div class="form-text text-success">Auto: 6x tarif harian</div>
+                                        <div class="form-text text-success">Auto: diskon 10% dari 7x tarif harian</div>
                                     </div>
                                     
                                     <div class="col-md-4 mb-3">
@@ -464,9 +464,9 @@ class MotorVerification {
                                                    id="monthly_rate" 
                                                    name="monthly_rate"
                                                    readonly
-                                                   placeholder="Otomatis dihitung">
+                                                   placeholder="Otomatis dengan diskon 20%">
                                         </div>
-                                        <div class="form-text text-success">Auto: 20x tarif harian</div>
+                                        <div class="form-text text-success">Auto: diskon 20% dari 30x tarif harian</div>
                                     </div>
                                 </div>
                                 
@@ -549,12 +549,12 @@ class MotorVerification {
                     return;
                 }
                 
-                // Kalkulasi otomatis tarif mingguan (6x tarif harian)
-                const weeklyRate = dailyRate * 6;
+                // Kalkulasi otomatis tarif mingguan (diskon 10%)
+                const weeklyRate = Math.floor(dailyRate * 7 * 0.9);
                 weeklyInput.value = weeklyRate;
                 
-                // Kalkulasi otomatis tarif bulanan (20x tarif harian)
-                const monthlyRate = dailyRate * 20;
+                // Kalkulasi otomatis tarif bulanan (diskon 20%)
+                const monthlyRate = Math.floor(dailyRate * 30 * 0.8);
                 monthlyInput.value = monthlyRate;
                 
                 console.log('Auto calculated:', {
@@ -595,8 +595,8 @@ class MotorVerification {
         });
         
         // Set placeholder yang jelas
-        weeklyInput.setAttribute('placeholder', 'Otomatis dari tarif harian');
-        monthlyInput.setAttribute('placeholder', 'Otomatis dari tarif harian');
+        weeklyInput.setAttribute('placeholder', 'Otomatis dengan diskon 10%');
+        monthlyInput.setAttribute('placeholder', 'Otomatis dengan diskon 20%');
         weeklyInput.setAttribute('readonly', 'true');
         monthlyInput.setAttribute('readonly', 'true');
         weeklyInput.classList.add('bg-light');
@@ -723,7 +723,7 @@ function showPricingModalFallback(motorId) {
                                                step="1000"
                                                placeholder="900000">
                                     </div>
-                                    <div class="form-text">Auto: 6x tarif harian</div>
+                                    <div class="form-text">Auto: diskon 10% dari 7x tarif harian</div>
                                 </div>
                                 
                                 <div class="col-md-4 mb-3">
@@ -738,7 +738,7 @@ function showPricingModalFallback(motorId) {
                                                step="1000"
                                                placeholder="3000000">
                                     </div>
-                                    <div class="form-text">Auto: 20x tarif harian</div>
+                                    <div class="form-text">Auto: diskon 20% dari 30x tarif harian</div>
                                 </div>
                             </div>
                         </div>
@@ -785,9 +785,9 @@ function showPricingModalFallback(motorId) {
                 return;
             }
             
-            // Kalkulasi otomatis
-            weeklyInput.value = dailyRate * 6;
-            monthlyInput.value = dailyRate * 20;
+            // Kalkulasi otomatis dengan sistem diskon
+            weeklyInput.value = Math.floor(dailyRate * 7 * 0.9); // 10% discount for weekly
+            monthlyInput.value = Math.floor(dailyRate * 30 * 0.8); // 20% discount for monthly
         } else {
             weeklyInput.value = '';
             monthlyInput.value = '';

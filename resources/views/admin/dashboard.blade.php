@@ -109,6 +109,37 @@
     </div>
 </div>
 
+<!-- Motor Status Management -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-motorcycle me-2"></i>Status Motor Realtime
+                    </h5>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="checkMotorStatus()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Cek Status
+                        </button>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="updateMotorStatus()">
+                            <i class="bi bi-gear me-1"></i>Update Status
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="motor-status-container">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-hourglass-split me-2"></i>
+                        Klik "Cek Status" untuk melihat status motor realtime
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Recent Activities and Quick Actions -->
 <div class="row">
     <!-- Pending Verifications -->
@@ -421,5 +452,187 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Motor Status Management Functions
+function checkMotorStatus() {
+    const container = document.getElementById('motor-status-container');
+    
+    // Show loading
+    container.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+            Mengecek status motor...
+        </div>
+    `;
+    
+    fetch('{{ route("admin.motors.status-realtime") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayMotorStatus(data.motors, data.timestamp);
+            } else {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error: ${data.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Terjadi kesalahan saat mengecek status motor
+                </div>
+            `;
+        });
+}
+
+function updateMotorStatus() {
+    if (!confirm('Update status semua motor berdasarkan booking aktif?')) {
+        return;
+    }
+    
+    const container = document.getElementById('motor-status-container');
+    
+    // Show loading
+    container.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+            Memperbarui status motor...
+        </div>
+    `;
+    
+    fetch('{{ route("admin.motors.update-status-realtime") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message then refresh status
+            container.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    ${data.message}
+                </div>
+            `;
+            
+            // Auto-refresh status after 1 second
+            setTimeout(() => {
+                checkMotorStatus();
+            }, 1000);
+        } else {
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Error: ${data.message}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Terjadi kesalahan saat memperbarui status motor
+            </div>
+        `;
+    });
+}
+
+function displayMotorStatus(motors, timestamp) {
+    const container = document.getElementById('motor-status-container');
+    
+    if (motors.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-inbox me-2"></i>
+                Tidak ada motor ditemukan
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="row mb-3">
+            <div class="col-12">
+                <small class="text-muted">
+                    <i class="bi bi-clock me-1"></i>
+                    Terakhir diperbarui: ${timestamp}
+                </small>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Motor</th>
+                        <th>Status DB</th>
+                        <th>Status Realtime</th>
+                        <th>Booking Aktif</th>
+                        <th>Penyewa</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    motors.forEach(motor => {
+        const statusMatch = motor.database_status === motor.realtime_status;
+        const statusBadgeDB = getStatusBadge(motor.database_status);
+        const statusBadgeRT = getStatusBadge(motor.realtime_status);
+        
+        html += `
+            <tr class="${!statusMatch ? 'table-warning' : ''}">
+                <td>
+                    <strong>${motor.brand} ${motor.type_cc}</strong><br>
+                    <small class="text-muted">${motor.plate_number}</small>
+                </td>
+                <td>${statusBadgeDB}</td>
+                <td>
+                    ${statusBadgeRT}
+                    ${!statusMatch ? '<i class="bi bi-exclamation-triangle text-warning ms-1" title="Status tidak sinkron"></i>' : ''}
+                </td>
+                <td>
+                    ${motor.current_booking ? 
+                        `<span class="badge bg-info">Ya</span><br>
+                         <small class="text-muted">${motor.current_booking.start_date} - ${motor.current_booking.end_date}</small>`
+                        : '<span class="badge bg-light text-dark">Tidak</span>'}
+                </td>
+                <td>
+                    ${motor.current_booking ? 
+                        `<strong>${motor.current_booking.renter_name}</strong><br>
+                         <small class="text-muted">Status: ${motor.current_booking.status}</small>`
+                        : '<span class="text-muted">-</span>'}
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'available': '<span class="badge bg-success">Tersedia</span>',
+        'rented': '<span class="badge bg-warning">Disewa</span>',
+        'maintenance': '<span class="badge bg-secondary">Maintenance</span>',
+        'pending_verification': '<span class="badge bg-info">Menunggu Verifikasi</span>'
+    };
+    
+    return badges[status] || `<span class="badge bg-light text-dark">${status}</span>`;
+}
 </script>
 @endsection

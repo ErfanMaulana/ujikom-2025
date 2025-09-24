@@ -89,16 +89,30 @@
                         </div>
                     @endif
                     
-                    <!-- Status Badge -->
+                    <!-- Status Badge - Realtime -->
                     <div class="position-absolute top-0 start-0 m-3">
-                        @if($motor->status === 'pending_verification')
+                        @php
+                            $currentStatus = $motor->getCurrentStatus();
+                            $currentBooking = $motor->getCurrentBooking();
+                        @endphp
+                        
+                        @if($currentStatus === 'pending_verification')
                             <span class="badge bg-warning">Menunggu Verifikasi</span>
-                        @elseif($motor->status === 'available')
-                            <span class="badge bg-success">Tersedia</span>
-                        @elseif($motor->status === 'rented')
-                            <span class="badge bg-info">Disewa</span>
-                        @elseif($motor->status === 'maintenance')
-                            <span class="badge bg-secondary">Maintenance</span>
+                        @elseif($currentStatus === 'rented')
+                            <span class="badge bg-danger text-white" title="Sedang disewa">
+                                <i class="bi bi-person-check me-1"></i>Sedang Disewa
+                            </span>
+                            @if($currentBooking)
+                                <br><small class="badge bg-dark mt-1">{{ $currentBooking->renter->name }}</small>
+                            @endif
+                        @elseif($currentStatus === 'available')
+                            <span class="badge bg-success" title="Tersedia untuk disewa">
+                                <i class="bi bi-check-circle me-1"></i>Tersedia
+                            </span>
+                        @elseif($currentStatus === 'maintenance')
+                            <span class="badge bg-secondary" title="Dalam maintenance">
+                                <i class="bi bi-tools me-1"></i>Maintenance
+                            </span>
                         @endif
                     </div>
 

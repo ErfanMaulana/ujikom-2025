@@ -100,15 +100,13 @@ class VerifyMotor extends Command
         if ($dailyRate) {
             // Verify with pricing
             if ($this->confirm('Verifikasi motor ini dengan harga yang ditentukan?')) {
-                // Auto-calculate weekly and monthly if not provided
-                if (!$weeklyRate) {
-                    $weeklyRate = $dailyRate * 6;
-                }
-                if (!$monthlyRate) {
-                    $monthlyRate = $dailyRate * 20;
-                }
-
-                // Update motor status
+        // Auto-calculate weekly and monthly if not provided
+        if (!$weeklyRate) {
+            $weeklyRate = $dailyRate * 7 * 0.9; // 10% discount for weekly
+        }
+        if (!$monthlyRate) {
+            $monthlyRate = $dailyRate * 30 * 0.8; // 20% discount for monthly
+        }                // Update motor status
                 $motor->update([
                     'status' => 'available',
                     'verified_at' => now()
@@ -137,8 +135,8 @@ class VerifyMotor extends Command
             // Interactive pricing input
             if ($this->confirm('Verifikasi motor ini?')) {
                 $dailyRate = $this->ask('Masukkan tarif harian (Rp)', 75000);
-                $weeklyRate = $this->ask('Masukkan tarif mingguan (Rp)', $dailyRate * 6);
-                $monthlyRate = $this->ask('Masukkan tarif bulanan (Rp)', $dailyRate * 20);
+                $weeklyRate = $this->ask('Masukkan tarif mingguan (Rp)', $dailyRate * 7 * 0.9);
+                $monthlyRate = $this->ask('Masukkan tarif bulanan (Rp)', $dailyRate * 30 * 0.8);
 
                 // Update motor status
                 $motor->update([

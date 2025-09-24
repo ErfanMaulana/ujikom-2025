@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Motor;
 use App\Models\Booking;
 use App\Models\RentalRate;
-use App\Models\Notification;
 use App\Models\User;
+use App\Models\Payment;
 use App\Models\Rating;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
 class PenyewaController extends Controller
@@ -21,7 +23,8 @@ class PenyewaController extends Controller
     {
         $user = Auth::user();
         
-        if (!$user->isVerified()) {
+        // Check if user is verified (has verified_at timestamp and status is verified)
+        if (!$user->verified_at || $user->status !== 'verified') {
             return redirect()->route('penyewa.dashboard')
                 ->with('error', 'Akun Anda belum diverifikasi. Silakan tunggu admin memverifikasi akun Anda sebelum dapat menyewa motor.');
         }
@@ -37,7 +40,7 @@ class PenyewaController extends Controller
         $penyewa = Auth::user();
         
         // Check verification status for display
-        $isVerified = $penyewa->isVerified();
+        $isVerified = $penyewa->verified_at && $penyewa->status === 'verified';
         
         // Statistik
         $totalBookings = Booking::where('renter_id', $penyewa->id)->count();
@@ -110,7 +113,8 @@ class PenyewaController extends Controller
         $motors = $query->paginate(12);
         
         // Check user verification status
-        $isVerified = Auth::user()->isVerified();
+        $user = Auth::user();
+        $isVerified = $user->verified_at && $user->status === 'verified';
 
         return view('penyewa.motors', compact('motors', 'isVerified'));
     }
@@ -173,7 +177,7 @@ class PenyewaController extends Controller
         $request->validate([
             'motor_id' => 'required|exists:motors,id',
             'start_date' => 'required|date|after_or_equal:today',
-            'end_date' => 'required|date|after:start_date',
+            'end_date' => 'required|date|after_or_equal:start_date',
             'package_type' => 'required|in:daily,weekly,monthly',
             'notes' => 'nullable|string|max:500'
         ]);
@@ -186,20 +190,23 @@ class PenyewaController extends Controller
         }
 
         // Cek availability motor untuk tanggal yang dipilih
-        if (!$motor->isAvailableForDates($request->start_date, $request->end_date)) {
-            $conflictingBookings = $motor->getConflictingBookings($request->start_date, $request->end_date);
-            $nextAvailable = $motor->getNextAvailableDate($request->end_date);
+        $startDate = Carbon::parse($request->start_date);
+        $endDate = Carbon::parse($request->end_date);
+        
+        $conflictingBookings = Booking::where('motor_id', $motor->id)
+            ->whereIn('status', ['pending', 'confirmed', 'active', 'ongoing'])
+            ->where(function($query) use ($startDate, $endDate) {
+                $query->whereBetween('start_date', [$startDate, $endDate])
+                      ->orWhereBetween('end_date', [$startDate, $endDate])
+                      ->orWhere(function($q) use ($startDate, $endDate) {
+                          $q->where('start_date', '<=', $startDate)
+                            ->where('end_date', '>=', $endDate);
+                      });
+            })
+            ->exists();
             
-            $errorMessage = 'Motor tidak tersedia pada tanggal yang dipilih.';
-            if ($conflictingBookings->count() > 0) {
-                $booking = $conflictingBookings->first();
-                $errorMessage .= ' Motor sudah disewa dari ' . 
-                    Carbon::parse($booking->start_date)->format('d M Y') . ' sampai ' . 
-                    Carbon::parse($booking->end_date)->format('d M Y') . '.';
-            }
-            $errorMessage .= ' Tanggal tersedia berikutnya: ' . $nextAvailable->format('d M Y');
-            
-            return back()->with('error', $errorMessage)->withInput();
+        if ($conflictingBookings) {
+            return back()->with('error', 'Motor tidak tersedia pada tanggal yang dipilih. Silakan pilih tanggal lain.')->withInput();
         }
 
         // Hitung total hari dan total harga berdasarkan paket
@@ -238,27 +245,8 @@ class PenyewaController extends Controller
             'notes' => $request->notes
         ]);
 
-        // Buat notifikasi untuk admin
-        $admins = User::where('role', 'admin')->get();
-        $packageNames = [
-            'daily' => 'Harian',
-            'weekly' => 'Mingguan',
-            'monthly' => 'Bulanan'
-        ];
-        
-        foreach ($admins as $admin) {
-            Notification::create([
-                'user_id' => $admin->id,
-                'type' => 'booking_created',
-                'title' => 'Pemesanan Motor Baru',
-                'message' => 'Pemesanan paket ' . $packageNames[$request->package_type] . ' untuk motor ' . $motor->brand . ' ' . $motor->model . ' oleh ' . Auth::user()->name,
-                'data' => [
-                    'booking_id' => $booking->id,
-                    'motor_id' => $motor->id,
-                    'renter_id' => Auth::id()
-                ]
-            ]);
-        }
+        // TODO: Add notification system when Notification model is available
+        // For now, we'll skip notifications
 
         return redirect()->route('penyewa.bookings')
             ->with('success', 'Booking berhasil dibuat. Silakan lakukan pembayaran.');
@@ -336,7 +324,7 @@ class PenyewaController extends Controller
     public function processPayment(Request $request, $bookingId)
     {
         $request->validate([
-            'payment_method' => 'required|in:transfer_bank,e_wallet,cash',
+            'payment_method' => 'required|in:bank_transfer,transfer_bank,e_wallet,cash,credit_card',
             'payment_notes' => 'nullable|string|max:500'
         ]);
 
@@ -344,16 +332,22 @@ class PenyewaController extends Controller
             ->where('status', 'pending')
             ->findOrFail($bookingId);
 
+        // Normalize payment method format
+        $paymentMethod = $request->payment_method;
+        if ($paymentMethod === 'transfer_bank') {
+            $paymentMethod = 'bank_transfer';
+        }
+
         $paymentData = [
             'booking_id' => $booking->id,
             'amount' => $booking->price,
-            'payment_method' => $request->payment_method,
+            'method' => $paymentMethod,
             'payment_notes' => $request->payment_notes,
             'status' => 'pending'
         ];
 
         // Buat payment record
-        \App\Models\Payment::create($paymentData);
+        Payment::create($paymentData);
 
         // Update booking status - tetap pending untuk verifikasi admin
         $booking->update(['status' => 'awaiting_payment_verification']);
@@ -367,7 +361,7 @@ class PenyewaController extends Controller
      */
     public function paymentHistory()
     {
-        $payments = \App\Models\Payment::whereHas('booking', function($query) {
+        $payments = Payment::whereHas('booking', function($query) {
             $query->where('renter_id', Auth::id());
         })
         ->with(['booking', 'booking.motor'])
@@ -382,7 +376,7 @@ class PenyewaController extends Controller
      */
     public function getPaymentDetailAjax($id)
     {
-        $payment = \App\Models\Payment::whereHas('booking', function($query) {
+        $payment = Payment::whereHas('booking', function($query) {
             $query->where('renter_id', Auth::id());
         })
         ->with(['booking', 'booking.motor'])
@@ -398,7 +392,7 @@ class PenyewaController extends Controller
      */
     public function paymentInvoice($id)
     {
-        $payment = \App\Models\Payment::whereHas('booking', function($query) {
+        $payment = Payment::whereHas('booking', function($query) {
             $query->where('renter_id', Auth::id());
         })
         ->with(['booking', 'booking.motor', 'booking.motor.owner'])
@@ -417,55 +411,79 @@ class PenyewaController extends Controller
      */
     public function checkAvailability(Request $request)
     {
-        // Check user verification for AJAX request
-        $user = Auth::user();
-        if (!$user->isVerified()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Akun Anda belum diverifikasi. Silakan tunggu admin memverifikasi akun Anda sebelum dapat menyewa motor.'
-            ], 403);
-        }
+        try {
+            // Check user verification for AJAX request
+            $user = Auth::user();
+            if (!$user->verified_at || $user->status !== 'verified') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akun Anda belum diverifikasi. Silakan tunggu admin memverifikasi akun Anda sebelum dapat menyewa motor.'
+                ], 403);
+            }
 
-        $request->validate([
-            'motor_id' => 'required|exists:motors,id',
-            'start_date' => 'required|date|after_or_equal:today',
-            'end_date' => 'required|date|after:start_date'
-        ]);
+            $validator = Validator::make($request->all(), [
+                'motor_id' => 'required|exists:motors,id',
+                'start_date' => 'required|date|after_or_equal:today',
+                'end_date' => 'required|date|after_or_equal:start_date'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data tidak valid',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
 
         $motor = Motor::findOrFail($request->motor_id);
-        $startDate = $request->start_date;
-        $endDate = $request->end_date;
+        $startDate = Carbon::parse($request->start_date);
+        $endDate = Carbon::parse($request->end_date);
 
         // Check if motor is available for the selected dates
-        $isAvailable = $motor->isAvailableForDates($startDate, $endDate);
+        $conflictingBookings = Booking::where('motor_id', $motor->id)
+            ->whereIn('status', ['pending', 'confirmed', 'active', 'ongoing'])
+            ->where(function($query) use ($startDate, $endDate) {
+                $query->whereBetween('start_date', [$startDate, $endDate])
+                      ->orWhereBetween('end_date', [$startDate, $endDate])
+                      ->orWhere(function($q) use ($startDate, $endDate) {
+                          $q->where('start_date', '<=', $startDate)
+                            ->where('end_date', '>=', $endDate);
+                      });
+            })
+            ->get();
+            
+        $isAvailable = $conflictingBookings->count() === 0;
         
         $response = [
             'available' => $isAvailable,
             'motor_id' => $motor->id,
-            'start_date' => $startDate,
-            'end_date' => $endDate
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d')
         ];
 
         if (!$isAvailable) {
-            $conflictingBookings = $motor->getConflictingBookings($startDate, $endDate);
-            $nextAvailable = $motor->getNextAvailableDate($endDate);
-            
             $response['message'] = 'Motor tidak tersedia pada tanggal yang dipilih.';
             $response['conflicts'] = $conflictingBookings->map(function($booking) {
                 return [
                     'id' => $booking->id,
                     'start_date' => Carbon::parse($booking->start_date)->format('d M Y'),
                     'end_date' => Carbon::parse($booking->end_date)->format('d M Y'),
-                    'renter_name' => $booking->renter->name ?? 'Unknown'
+                    'status' => $booking->status
                 ];
             });
-            $response['next_available_date'] = $nextAvailable->format('Y-m-d');
-            $response['next_available_formatted'] = $nextAvailable->format('d M Y');
         } else {
             $response['message'] = 'Motor tersedia untuk tanggal yang dipilih.';
         }
 
         return response()->json($response);
+        
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengecek ketersediaan',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -531,7 +549,8 @@ class PenyewaController extends Controller
             return response()->json(['error' => 'Rating tidak ditemukan'], 404);
         }
 
-        if (!$rating->canEdit()) {
+        // Check if rating can be edited (within 24 hours)
+        if ($rating->created_at->diffInHours(now()) > 24) {
             return response()->json(['error' => 'Rating hanya dapat diedit dalam 24 jam pertama'], 400);
         }
 
@@ -559,7 +578,8 @@ class PenyewaController extends Controller
             return response()->json(['error' => 'Rating tidak ditemukan'], 404);
         }
 
-        if (!$rating->canEdit()) {
+        // Check if rating can be deleted (within 24 hours)
+        if ($rating->created_at->diffInHours(now()) > 24) {
             return response()->json(['error' => 'Rating hanya dapat dihapus dalam 24 jam pertama'], 400);
         }
 
@@ -580,14 +600,15 @@ class PenyewaController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        $averageRating = $motor->getAverageRating();
-        $totalRatings = $motor->getTotalRatings();
+        // Calculate rating statistics
+        $allRatings = Rating::where('motor_id', $motorId)->get();
+        $averageRating = $allRatings->avg('rating') ?? 0;
+        $totalRatings = $allRatings->count();
 
         return response()->json([
             'ratings' => $ratings,
-            'average_rating' => $averageRating,
-            'total_ratings' => $totalRatings,
-            'rating_stars' => $motor->getRatingStars()
+            'average_rating' => round($averageRating, 1),
+            'total_ratings' => $totalRatings
         ]);
     }
 
@@ -604,8 +625,8 @@ class PenyewaController extends Controller
         $activeBookings = Booking::where('renter_id', $penyewa->id)->where('status', 'active')->count();
         $cancelledBookings = Booking::where('renter_id', $penyewa->id)->where('status', 'cancelled')->count();
         
-        // Get recent bookings with motor and rating info
-        $recentBookings = Booking::with(['motor', 'motor.category', 'payment'])
+        // Get recent bookings with motor info
+        $recentBookings = Booking::with(['motor'])
             ->where('renter_id', $penyewa->id)
             ->orderBy('created_at', 'desc')
             ->limit(10)
@@ -619,9 +640,9 @@ class PenyewaController extends Controller
             ->get();
 
         // Calculate total spending
-        $totalSpending = $penyewa->bookings()
+        $totalSpending = Booking::where('renter_id', $penyewa->id)
             ->whereIn('status', ['completed', 'active'])
-            ->sum('total_price');
+            ->sum('price');
 
         return view('penyewa.reports', compact(
             'totalBookings',
@@ -642,7 +663,7 @@ class PenyewaController extends Controller
         $penyewa = Auth::user();
         $format = $request->get('format', 'pdf'); // pdf or excel
         
-        $bookings = Booking::with(['motor', 'motor.category', 'payment'])
+        $bookings = Booking::with(['motor'])
             ->where('renter_id', $penyewa->id)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -659,7 +680,7 @@ class PenyewaController extends Controller
             'summary' => [
                 'total_bookings' => $bookings->count(),
                 'completed_bookings' => $bookings->where('status', 'completed')->count(),
-                'total_spending' => $bookings->whereIn('status', ['completed', 'active'])->sum('total_price'),
+                'total_spending' => $bookings->whereIn('status', ['completed', 'active'])->sum('price'),
                 'average_rating_given' => $ratings->avg('rating')
             ]
         ]);
