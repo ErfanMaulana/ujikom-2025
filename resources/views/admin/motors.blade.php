@@ -102,8 +102,8 @@ use Illuminate\Support\Facades\Storage;
                                 <i class="bi bi-check-circle me-1"></i>Tersedia
                             </span>
                         @elseif($motor->status === 'rented')
-                            <span class="badge bg-info fs-6">
-                                <i class="bi bi-person-check me-1"></i>Disewa
+                            <span class="badge bg-warning text-dark fs-6">
+                                <i class="bi bi-person-check me-1"></i>Sedang Disewa
                             </span>
                         @elseif($motor->status === 'maintenance')
                             <span class="badge bg-secondary fs-6">

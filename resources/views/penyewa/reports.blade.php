@@ -1,182 +1,196 @@
-@extends('layouts.app')
+@extends('layouts.fann')
 
-@section('title', 'Laporan Rental - Penyewa')
+@section('title', 'Laporan Rental')
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <!-- Header -->
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Laporan Rental Saya</h1>
-        <p class="text-gray-600 mt-2">Ringkasan aktivitas rental dan rating motor</p>
-    </div>
+<!-- Content Header -->
+<div class="content-header">
+    <h1>Laporan Rental Saya</h1>
+    <p>Ringkasan aktivitas rental dan rating motor</p>
+</div>
 
-    <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-blue-100 rounded-full">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="text-primary mb-2">
+                    <i class="bi bi-calendar-check" style="font-size: 2.5rem;"></i>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Total Booking</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $totalBookings }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-green-100 rounded-full">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Selesai</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $completedBookings }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-yellow-100 rounded-full">
-                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Aktif</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $activeBookings }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-purple-100 rounded-full">
-                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Total Pengeluaran</p>
-                    <p class="text-2xl font-bold text-gray-900">Rp {{ number_format($totalSpending, 0, ',', '.') }}</p>
-                </div>
+                <h3 class="h4 fw-bold text-dark">{{ $totalBookings }}</h3>
+                <p class="text-muted mb-0">Total Booking</p>
             </div>
         </div>
     </div>
-
-    <!-- Recent Bookings & Ratings Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Recent Bookings -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-gray-900">Booking Terbaru</h2>
-                <a href="{{ route('penyewa.bookings') }}" class="text-blue-600 hover:text-blue-800">Lihat Semua</a>
-            </div>
-            
-            <div class="space-y-4">
-                @forelse($recentBookings as $booking)
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <h3 class="font-medium text-gray-900">{{ $booking->motor->name }}</h3>
-                            <p class="text-sm text-gray-600">{{ $booking->motor->category->name }}</p>
-                            <p class="text-sm text-gray-500">
-                                {{ \Carbon\Carbon::parse($booking->start_date)->format('d M Y') }} - 
-                                {{ \Carbon\Carbon::parse($booking->end_date)->format('d M Y') }}
-                            </p>
-                            <p class="text-sm font-medium text-green-600">Rp {{ number_format($booking->total_price, 0, ',', '.') }}</p>
-                        </div>
-                        <div class="text-right">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                @if($booking->status === 'completed') bg-green-100 text-green-800
-                                @elseif($booking->status === 'active') bg-blue-100 text-blue-800
-                                @elseif($booking->status === 'cancelled') bg-red-100 text-red-800
-                                @else bg-gray-100 text-gray-800
-                                @endif">
-                                {{ ucfirst($booking->status) }}
-                            </span>
-                        </div>
-                    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="text-success mb-2">
+                    <i class="bi bi-check-circle" style="font-size: 2.5rem;"></i>
                 </div>
-                @empty
-                <p class="text-gray-500 text-center py-4">Belum ada booking</p>
-                @endforelse
-            </div>
-        </div>
-
-        <!-- Recent Ratings Given -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-gray-900">Rating yang Diberikan</h2>
-            </div>
-            
-            <div class="space-y-4">
-                @forelse($ratingsGiven as $rating)
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <h3 class="font-medium text-gray-900">{{ $rating->motor->name }}</h3>
-                            <div class="flex items-center mt-1">
-                                @for($i = 1; $i <= 5; $i++)
-                                    <svg class="w-4 h-4 {{ $i <= $rating->rating ? 'text-yellow-400' : 'text-gray-300' }}" 
-                                         fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                                    </svg>
-                                @endfor
-                                <span class="ml-2 text-sm text-gray-600">({{ $rating->rating }}/5)</span>
-                            </div>
-                            @if($rating->review)
-                            <p class="text-sm text-gray-600 mt-2">{{ Str::limit($rating->review, 100) }}</p>
-                            @endif
-                            <p class="text-xs text-gray-500 mt-1">{{ $rating->created_at->format('d M Y') }}</p>
-                        </div>
-                    </div>
-                </div>
-                @empty
-                <p class="text-gray-500 text-center py-4">Belum ada rating yang diberikan</p>
-                @endforelse
+                <h3 class="h4 fw-bold text-dark">{{ $completedBookings }}</h3>
+                <p class="text-muted mb-0">Selesai</p>
             </div>
         </div>
     </div>
-
-    <!-- Export Section -->
-    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Export Laporan</h2>
-        <div class="flex space-x-4">
-            <button onclick="exportReport('pdf')" 
-                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                Export PDF
-            </button>
-            <button onclick="exportReport('excel')" 
-                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                Export Excel
-            </button>
+    
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="text-warning mb-2">
+                    <i class="bi bi-clock" style="font-size: 2.5rem;"></i>
+                </div>
+                <h3 class="h4 fw-bold text-dark">{{ $activeBookings }}</h3>
+                <p class="text-muted mb-0">Aktif</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="text-info mb-2">
+                    <i class="bi bi-currency-dollar" style="font-size: 2.5rem;"></i>
+                </div>
+                <h3 class="h4 fw-bold text-dark">Rp {{ number_format($totalSpending, 0, ',', '.') }}</h3>
+                <p class="text-muted mb-0">Total Pengeluaran</p>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- Recent Bookings & Ratings Section -->
+<div class="row">
+    <!-- Recent Bookings -->
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-check me-2"></i>Booking Terbaru
+                    </h5>
+                    <a href="{{ route('penyewa.bookings') }}" class="btn btn-sm btn-outline-primary">Lihat Semua</a>
+                </div>
+            </div>
+            <div class="card-body">
+                @forelse($recentBookings as $booking)
+                    <div class="border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="fw-bold mb-1">
+                                    {{ $booking->motor ? $booking->motor->brand . ' ' . $booking->motor->model : 'Motor Tidak Ditemukan' }}
+                                </h6>
+                                @if($booking->motor)
+                                    <p class="text-muted small mb-1">{{ $booking->motor->plate_number }}</p>
+                                @endif
+                                <p class="text-muted small mb-1">
+                                    {{ \Carbon\Carbon::parse($booking->start_date)->format('d M Y') }} - 
+                                    {{ \Carbon\Carbon::parse($booking->end_date)->format('d M Y') }}
+                                </p>
+                                <p class="text-success fw-bold mb-0">Rp {{ number_format((float)($booking->price ?? 0), 0, ',', '.') }}</p>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge 
+                                    @if($booking->status === 'completed') bg-success
+                                    @elseif($booking->status === 'active') bg-primary
+                                    @elseif($booking->status === 'cancelled') bg-danger
+                                    @elseif($booking->status === 'pending') bg-warning
+                                    @else bg-secondary
+                                    @endif">
+                                    {{ ucfirst($booking->status) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="text-center py-4">
+                        <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-2">Belum ada booking</p>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Ratings Given -->
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-star me-2"></i>Rating yang Diberikan
+                </h5>
+            </div>
+            <div class="card-body">
+                @forelse($ratingsGiven as $rating)
+                    <div class="border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="fw-bold mb-1">
+                                    {{ $rating->motor ? $rating->motor->brand . ' ' . $rating->motor->model : 'Motor Tidak Ditemukan' }}
+                                </h6>
+                                <div class="d-flex align-items-center mb-2">
+                                    @for($i = 1; $i <= 5; $i++)
+                                        <i class="bi bi-star{{ $i <= $rating->rating ? '-fill text-warning' : ' text-muted' }}"></i>
+                                    @endfor
+                                    <span class="ms-2 text-muted small">({{ $rating->rating }}/5)</span>
+                                </div>
+                                @if($rating->review)
+                                    <p class="text-muted small mb-2">{{ Str::limit($rating->review, 100) }}</p>
+                                @endif
+                                <p class="text-muted small mb-0">{{ $rating->created_at->format('d M Y') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="text-center py-4">
+                        <i class="bi bi-star text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-2">Belum ada rating yang diberikan</p>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Section -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-download me-2"></i>Export Laporan
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-3">
+                    <button onclick="exportReport('pdf')" class="btn btn-danger">
+                        <i class="bi bi-file-pdf me-2"></i>Export PDF
+                    </button>
+                    <button onclick="exportReport('excel')" class="btn btn-success">
+                        <i class="bi bi-file-excel me-2"></i>Export Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </div>
+</div>
+
+@push('scripts')
 <script>
 function exportReport(format) {
     // Show loading
     const button = event.target;
     const originalText = button.innerHTML;
-    button.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Exporting...';
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Exporting...';
+    button.disabled = true;
     
     fetch(`{{ route('penyewa.reports.export') }}?format=${format}`)
         .then(response => response.json())
         .then(data => {
-            // For now just show the data in console
             console.log('Export data:', data);
             alert('Export berhasil! Data tersedia di console browser.');
         })
@@ -186,7 +200,9 @@ function exportReport(format) {
         })
         .finally(() => {
             button.innerHTML = originalText;
+            button.disabled = false;
         });
 }
 </script>
+@endpush
 @endsection

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Artisan;
 use Carbon\Carbon;
 
 class AdminController extends Controller
@@ -299,7 +300,7 @@ class AdminController extends Controller
         $stats = [
             'pending' => Booking::where('status', 'pending')->count(),
             'confirmed' => Booking::where('status', 'confirmed')->count(),
-            'ongoing' => Booking::where('status', 'ongoing')->count(),
+            'ongoing' => Booking::where('status', 'active')->count(),
             'completed' => Booking::where('status', 'completed')->count()
         ];
 
@@ -317,7 +318,7 @@ class AdminController extends Controller
         $booking = Booking::findOrFail($id);
         
         $request->validate([
-            'status' => 'required|in:pending,confirmed,ongoing,completed,cancelled'
+            'status' => 'required|in:pending,confirmed,active,completed,cancelled'
         ]);
 
         $booking->update(['status' => $request->status]);
@@ -516,7 +517,9 @@ class AdminController extends Controller
     public function financialReport(Request $request)
     {
         // Base query untuk revenue sharing yang sudah dibuat (payment sudah diverifikasi)
-        $query = RevenueSharing::with(['booking.renter', 'booking.motor', 'owner'])
+        $query = RevenueSharing::with(['booking.renter', 'booking.motor.owner', 'owner'])
+            ->whereHas('booking')
+            ->whereHas('owner')
             ->whereIn('status', ['pending', 'paid']); // Include both approved payments and completed rentals
 
         // Filter berdasarkan tanggal jika ada (berdasarkan created_at dari revenue sharing)
@@ -564,35 +567,157 @@ class AdminController extends Controller
             'owner_share' => $monthlyRevenue->pluck('owner_total')->toArray()
         ];
 
-        // Top motors berdasarkan revenue sharing
-        $topMotors = RevenueSharing::select('booking_id')
-            ->with(['booking.motor'])
-            ->whereIn('status', ['pending', 'paid'])
-            ->get()
-            ->groupBy('booking.motor.id')
-            ->map(function ($items, $motorId) {
-                $motor = $items->first()->booking->motor;
-                return [
-                    'motor' => $motor,
-                    'booking_count' => $items->count(),
-                    'total_revenue' => $items->sum('total_amount')
-                ];
-            })
-            ->sortByDesc('total_revenue')
+        // Top motors berdasarkan booking yang completed
+        $topMotors = Booking::select('motor_id', DB::raw('COUNT(*) as booking_count'), DB::raw('SUM(price) as total_revenue'))
+            ->where('status', 'completed')
+            ->with(['motor'])
+            ->groupBy('motor_id')
+            ->orderBy('total_revenue', 'desc')
             ->take(5)
-            ->values();
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'motor' => $item->motor,
+                    'booking_count' => $item->booking_count,
+                    'total_revenue' => $item->total_revenue
+                ];
+            });
 
         // Revenue sharing per pemilik
         $ownerSummary = RevenueSharing::select('owner_id', DB::raw('COUNT(*) as transaction_count'), 
                                                DB::raw('SUM(total_amount) as total_revenue'),
                                                DB::raw('SUM(owner_amount) as owner_earned'),
                                                DB::raw('SUM(admin_commission) as admin_earned'))
-            ->with('owner')
             ->groupBy('owner_id')
             ->orderBy('total_revenue', 'desc')
-            ->get();
+            ->get()
+            ->map(function($item) {
+                $item->owner = User::find($item->owner_id);
+                // Hitung jumlah motor yang dimiliki owner
+                $item->motor_count = Motor::where('owner_id', $item->owner_id)->count();
+                return $item;
+            });
 
         return view('admin.financial-report', compact('transactions', 'summary', 'chartData', 'topMotors', 'ownerSummary'));
+    }
+
+    /**
+     * Export financial report to PDF
+     */
+    public function exportFinancialReportPDF(Request $request)
+    {
+        // Base query untuk revenue sharing yang sudah dibuat (payment sudah diverifikasi)
+        $query = RevenueSharing::with(['booking.renter', 'booking.motor.owner', 'owner'])
+            ->whereHas('booking')
+            ->whereHas('owner')
+            ->whereIn('status', ['pending', 'paid']);
+
+        // Filter berdasarkan tanggal jika ada
+        $dateRange = null;
+        if ($request->filled('date_from') && $request->filled('date_to')) {
+            $query->where('created_at', '>=', $request->date_from)
+                  ->where('created_at', '<=', $request->date_to . ' 23:59:59');
+            $dateRange = date('d M Y', strtotime($request->date_from)) . ' - ' . date('d M Y', strtotime($request->date_to));
+        } elseif ($request->filled('date_from')) {
+            $query->where('created_at', '>=', $request->date_from);
+            $dateRange = 'Sejak ' . date('d M Y', strtotime($request->date_from));
+        } elseif ($request->filled('date_to')) {
+            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
+            $dateRange = 'Sampai ' . date('d M Y', strtotime($request->date_to));
+        }
+
+        // Get all transactions untuk PDF (tanpa pagination)
+        $transactions = $query->orderBy('created_at', 'desc')->get();
+
+        // Hitung summary dari semua revenue sharing yang sudah dibuat
+        $allRevenueSharing = RevenueSharing::whereIn('status', ['pending', 'paid']);
+        
+        // Apply same date filter untuk summary
+        if ($request->filled('date_from')) {
+            $allRevenueSharing->where('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $allRevenueSharing->where('created_at', '<=', $request->date_to . ' 23:59:59');
+        }
+        
+        $filteredRevenueSharing = $allRevenueSharing->get();
+        $totalRevenue = $filteredRevenueSharing->sum('total_amount');
+        $adminCommission = $filteredRevenueSharing->sum('admin_commission');
+        $ownerShare = $filteredRevenueSharing->sum('owner_amount');
+
+        $summary = [
+            'total_revenue' => $totalRevenue,
+            'admin_commission' => $adminCommission,
+            'owner_amount' => $ownerShare,
+            'total_bookings' => $filteredRevenueSharing->count(),
+            'pending_settlements' => $filteredRevenueSharing->where('status', 'pending')->count(),
+            'completed_settlements' => $filteredRevenueSharing->where('status', 'paid')->count()
+        ];
+
+        // Top motors berdasarkan booking yang completed dalam periode yang dipilih
+        $topMotorsQuery = Booking::select('motor_id', DB::raw('COUNT(*) as booking_count'), DB::raw('SUM(price) as total_revenue'))
+            ->where('status', 'completed')
+            ->with(['motor']);
+            
+        if ($request->filled('date_from')) {
+            $topMotorsQuery->where('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $topMotorsQuery->where('created_at', '<=', $request->date_to . ' 23:59:59');
+        }
+            
+        $topMotors = $topMotorsQuery->groupBy('motor_id')
+            ->orderBy('total_revenue', 'desc')
+            ->take(5)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'motor' => $item->motor,
+                    'booking_count' => $item->booking_count,
+                    'total_revenue' => $item->total_revenue
+                ];
+            });
+
+        // Revenue sharing per pemilik dalam periode yang dipilih
+        $ownerSummaryQuery = RevenueSharing::select('owner_id', DB::raw('COUNT(*) as transaction_count'), 
+                                                   DB::raw('SUM(total_amount) as total_revenue'),
+                                                   DB::raw('SUM(owner_amount) as owner_earned'),
+                                                   DB::raw('SUM(admin_commission) as admin_earned'))
+            ->groupBy('owner_id')
+            ->orderBy('total_revenue', 'desc');
+            
+        if ($request->filled('date_from')) {
+            $ownerSummaryQuery->where('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $ownerSummaryQuery->where('created_at', '<=', $request->date_to . ' 23:59:59');
+        }
+            
+        $ownerSummary = $ownerSummaryQuery->get()
+            ->map(function($item) {
+                $item->owner = User::find($item->owner_id);
+                // Hitung jumlah motor yang dimiliki owner
+                $item->motor_count = Motor::where('owner_id', $item->owner_id)->count();
+                return $item;
+            });
+
+        // Generate PDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.financial-report-pdf', compact(
+            'transactions', 
+            'summary', 
+            'topMotors', 
+            'ownerSummary', 
+            'dateRange'
+        ));
+
+        // Set paper size dan orientation
+        $pdf->setPaper('A4', 'portrait');
+
+        // Generate filename
+        $filename = 'Laporan_Keuangan_' . date('Y-m-d_H-i-s') . '.pdf';
+
+        // Download PDF
+        return $pdf->download($filename);
     }
 
     /**
@@ -827,7 +952,7 @@ class AdminController extends Controller
             
             // Check if motor has active bookings
             $activeBookings = $motor->bookings()
-                ->whereIn('status', ['pending', 'confirmed', 'ongoing'])
+                ->whereIn('status', ['pending', 'confirmed', 'active'])
                 ->count();
                 
             if ($activeBookings > 0) {
@@ -910,9 +1035,9 @@ class AdminController extends Controller
     {
         try {
             // Jalankan command update motor status
-            \Artisan::call('motor:update-status');
+            Artisan::call('motor:update-status');
             
-            $output = \Artisan::output();
+            $output = Artisan::output();
             
             return response()->json([
                 'success' => true,
@@ -971,5 +1096,104 @@ class AdminController extends Controller
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Export bookings to PDF
+     */
+    public function exportBookingsPdf(Request $request)
+    {
+        // Base query for bookings
+        $query = Booking::with(['renter', 'motor.owner']);
+
+        // Apply filters (sama seperti di method bookings)
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhereHas('renter', function($q) use ($search) {
+                      $q->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Date filters
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        // Period filters
+        if ($request->filled('period')) {
+            switch ($request->period) {
+                case 'today':
+                    $query->whereDate('created_at', today());
+                    break;
+                case 'week':
+                    $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+                    break;
+                case 'month':
+                    $query->whereMonth('created_at', now()->month)
+                          ->whereYear('created_at', now()->year);
+                    break;
+            }
+        }
+
+        // Get all bookings for PDF (without pagination)
+        $bookings = $query->orderBy('created_at', 'desc')->get();
+
+        // Calculate summary
+        $totalBookings = $bookings->count();
+        $pendingBookings = $bookings->where('status', 'pending')->count();
+        $confirmedBookings = $bookings->where('status', 'confirmed')->count();
+        $activeBookings = $bookings->where('status', 'active')->count();
+        $completedBookings = $bookings->where('status', 'completed')->count();
+        $cancelledBookings = $bookings->where('status', 'cancelled')->count();
+
+        // Generate filter description
+        $filterDescription = [];
+        if ($request->filled('status')) {
+            $filterDescription[] = 'Status: ' . ucfirst($request->status);
+        }
+        if ($request->filled('period')) {
+            $filterDescription[] = 'Periode: ' . ucfirst($request->period);
+        }
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $filterDescription[] = 'Tanggal: ' . $request->start_date . ' s/d ' . $request->end_date;
+        }
+
+        $filterText = !empty($filterDescription) ? implode(', ', $filterDescription) : 'Semua Data';
+
+        $summary = [
+            'total_bookings' => $totalBookings,
+            'pending_bookings' => $pendingBookings,
+            'confirmed_bookings' => $confirmedBookings,
+            'active_bookings' => $activeBookings,
+            'completed_bookings' => $completedBookings,
+            'cancelled_bookings' => $cancelledBookings,
+            'filter_text' => $filterText
+        ];
+
+        // Generate PDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.bookings-pdf', compact(
+            'bookings', 
+            'summary'
+        ));
+
+        // Set paper size dan orientation
+        $pdf->setPaper('A4', 'landscape'); // landscape untuk tabel yang lebar
+
+        // Generate filename
+        $filename = 'Laporan_Bookings_' . date('Y-m-d_H-i-s') . '.pdf';
+
+        // Download PDF
+        return $pdf->download($filename);
     }
 }

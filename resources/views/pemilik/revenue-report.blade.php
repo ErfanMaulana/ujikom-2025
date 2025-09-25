@@ -18,9 +18,13 @@
                         <i class="bi bi-graph-up me-2"></i>Laporan Pendapatan Motor
                     </h5>
                     <div>
-                        <a href="{{ route('pemilik.revenue.download') }}" class="btn btn-success">
-                            <i class="bi bi-download"></i> Download Laporan
-                        </a>
+                        <form method="GET" action="{{ route('pemilik.revenue.export.pdf') }}" style="display: inline;">
+                            <input type="hidden" name="month" value="{{ request('month') }}">
+                            <input type="hidden" name="year" value="{{ request('year') }}">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-file-pdf"></i> Export Laporan
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -216,7 +220,7 @@
                             </li>
                             <li class="mb-2">
                                 <i class="bi bi-check-circle text-success me-2"></i>
-                                Laporan dapat didownload dalam format PDF/Excel
+                                Laporan dapat didownload dalam format PDF
                             </li>
                         </ul>
                     </div>

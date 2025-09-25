@@ -80,7 +80,7 @@
                                 </div>
                                 <div class="col-sm-6 mb-3">
                                     <h6><i class="bi bi-currency-dollar me-2"></i>Total Harga</h6>
-                                    <p class="mb-0"><strong class="text-primary fs-5">Rp {{ number_format($booking->price, 0, ',', '.') }}</strong></p>
+                                    <p class="mb-0"><strong class="text-primary fs-5">Rp {{ number_format((float)($booking->price ?? 0), 0, ',', '.') }}</strong></p>
                                 </div>
                             </div>
                             
@@ -153,7 +153,7 @@
                                     </tr>
                                     <tr class="table-primary">
                                         <td><strong>Total:</strong></td>
-                                        <td><strong>Rp {{ number_format($booking->price, 0, ',', '.') }}</strong></td>
+                                        <td><strong>Rp {{ number_format((float)($booking->price ?? 0), 0, ',', '.') }}</strong></td>
                                     </tr>
                                 </table>
                             @endif

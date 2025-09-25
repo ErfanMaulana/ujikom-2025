@@ -74,7 +74,7 @@
                 <i class="bi bi-clock"></i>
             </div>
             <h3 class="stat-number">{{ $rentedMotors }}</h3>
-            <p class="stat-label">Sedang Disewa</p>
+            <p class="stat-label">Disewa</p>
         </div>
     </div>
     <div class="col-lg-3 col-md-6 mb-4">
@@ -151,7 +151,7 @@
                                             
                                             @if($currentStatus === 'rented')
                                                 <span class="badge bg-warning text-dark" title="Sedang disewa">
-                                                    <i class="bi bi-person-check me-1"></i>Disewa
+                                                    <i class="bi bi-person-check me-1"></i>Sedang Disewa
                                                 </span>
                                                 @if($currentBooking)
                                                     <br><small class="text-muted">{{ $currentBooking->renter->name }}</small>

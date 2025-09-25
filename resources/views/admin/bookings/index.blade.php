@@ -19,7 +19,7 @@
                     </h5>
                     <div>
                         <button class="btn btn-success me-2" onclick="exportBookings()">
-                            <i class="bi bi-download"></i> Export Excel
+                            <i class="bi bi-file-pdf"></i> Export Bookings
                         </button>
                         <span class="badge bg-info fs-6">Total: {{ $bookings->total() }} Pemesanan</span>
                     </div>
@@ -36,7 +36,7 @@
                                 <option value="">Semua Status</option>
                                     <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
                                     <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>Dikonfirmasi</option>
-                                    <option value="ongoing" {{ request('status') == 'ongoing' ? 'selected' : '' }}>Sedang Berlangsung</option>
+                                    <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Sedang Berlangsung</option>
                                     <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Selesai</option>
                                     <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Dibatalkan</option>
                                 </select>

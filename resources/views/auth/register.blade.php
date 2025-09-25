@@ -85,24 +85,25 @@
 
     <!-- Role Selection -->
     <div class="form-group">
-        <label class="form-label">
+        <label class="form-label" for="role">
             <i class="bi bi-person-badge me-2"></i>Pilih Role Anda
         </label>
-        <div class="role-selection">
-            <div class="role-card {{ old('role') === 'penyewa' ? 'selected' : '' }}" onclick="selectRole('penyewa')">
-                <i class="bi bi-person-check"></i>
-                <h6>Penyewa</h6>
-                <p>Saya ingin menyewa motor</p>
-            </div>
-            <div class="role-card {{ old('role') === 'pemilik' ? 'selected' : '' }}" onclick="selectRole('pemilik')">
-                <i class="bi bi-shop"></i>
-                <h6>Pemilik Motor</h6>
-                <p>Saya ingin menyewakan motor</p>
-            </div>
-        </div>
-        <input type="hidden" id="role" name="role" value="{{ old('role') }}" required>
+        <select 
+            id="role" 
+            name="role" 
+            class="form-select @error('role') is-invalid @enderror" 
+            required
+        >
+            <option value="">-- Pilih Role Anda --</option>
+            <option value="penyewa" {{ old('role') === 'penyewa' ? 'selected' : '' }}>
+                Penyewa - Saya ingin menyewa motor
+            </option>
+            <option value="pemilik" {{ old('role') === 'pemilik' ? 'selected' : '' }}>
+                Pemilik Motor - Saya ingin menyewakan motor
+            </option>
+        </select>
         @error('role')
-            <div class="invalid-feedback d-block">{{ $message }}</div>
+            <div class="invalid-feedback">{{ $message }}</div>
         @enderror
     </div>
 
@@ -173,19 +174,6 @@
 </div>
 
 <script>
-function selectRole(role) {
-    // Remove selected class from all cards
-    document.querySelectorAll('.role-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    
-    // Add selected class to clicked card
-    event.target.closest('.role-card').classList.add('selected');
-    
-    // Set hidden input value
-    document.getElementById('role').value = role;
-}
-
 function togglePassword(fieldId) {
     const passwordField = document.getElementById(fieldId);
     const eyeIcon = document.getElementById(fieldId + '-eye');
@@ -204,35 +192,13 @@ function togglePassword(fieldId) {
 
 // Form submission with loading state
 document.getElementById('registerForm').addEventListener('submit', function(e) {
-    const roleInput = document.getElementById('role');
-    
-    // Validate role selection
-    if (!roleInput.value) {
-        e.preventDefault();
-        alert('Silakan pilih role Anda (Penyewa atau Pemilik Motor)');
-        return;
-    }
-    
     const registerBtn = document.getElementById('registerBtn');
     registerBtn.disabled = true;
     registerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
     registerBtn.classList.add('loading');
 });
 
-// Auto-select role if old value exists
-document.addEventListener('DOMContentLoaded', function() {
-    const oldRole = '{{ old("role") }}';
-    if (oldRole) {
-        // Find the role card and select it
-        const roleCards = document.querySelectorAll('.role-card');
-        roleCards.forEach((card, index) => {
-            if ((oldRole === 'penyewa' && index === 0) || (oldRole === 'pemilik' && index === 1)) {
-                card.classList.add('selected');
-                document.getElementById('role').value = oldRole;
-            }
-        });
-    }
-});
+// Role dropdown is now handled by HTML select element
 
 // Add visual feedback for form validation
 document.getElementById('registerForm').addEventListener('input', function(e) {

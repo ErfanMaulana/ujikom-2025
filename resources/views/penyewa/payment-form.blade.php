@@ -198,7 +198,7 @@
                 <!-- Total -->
                 <div class="d-flex justify-content-between">
                     <strong class="fs-5">Total Pembayaran:</strong>
-                    <strong class="fs-5 text-primary">Rp {{ number_format($booking->price, 0, ',', '.') }}</strong>
+                    <strong class="fs-5 text-primary">Rp {{ number_format((float)($booking->price ?? 0), 0, ',', '.') }}</strong>
                 </div>
 
                 <!-- Owner Contact -->

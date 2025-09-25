@@ -332,7 +332,7 @@ class PemilikController extends Controller
 
         if ($activeBookings > 0) {
             Log::info('Motor has active bookings: ' . $activeBookings);
-            return back()->withErrors(['error' => 'Motor tidak dapat dihapus karena sedang ada pesanan aktif.']);
+            return back()->withErrors(['error' => "Motor {$motor->brand} {$motor->plate_number} tidak dapat dihapus karena masih memiliki {$activeBookings} pesanan aktif. Selesaikan atau batalkan pesanan terlebih dahulu."]);
         }
 
         // Hapus foto jika ada
@@ -356,7 +356,7 @@ class PemilikController extends Controller
         Log::info('Motor deleted successfully');
 
         return redirect()->route('pemilik.motors')
-            ->with('success', 'Motor berhasil dihapus.');
+            ->with('success', "Motor {$motor->brand} {$motor->plate_number} berhasil dihapus beserta semua data terkaitnya.");
     }
 
     /**
@@ -397,6 +397,16 @@ class PemilikController extends Controller
      */
     public function revenueReport(Request $request)
     {
+        $data = $this->getRevenueData($request, true); // true = with pagination
+        
+        return view('pemilik.revenue-report', [
+            'revenues' => $data['revenues'],
+            'totalRevenue' => $data['totalRevenue']
+        ]);
+    }
+
+    private function getRevenueData(Request $request, $withPagination = false)
+    {
         // Base query for total calculation
         $totalQuery = RevenueSharing::whereHas('booking.motor', function($q) {
             $q->where('owner_id', Auth::id());
@@ -420,9 +430,23 @@ class PemilikController extends Controller
 
         // Get results
         $totalRevenue = $totalQuery->sum('owner_amount');
-        $revenues = $paginatedQuery->orderBy('created_at', 'desc')->paginate(10);
+        $totalBookings = $totalQuery->count();
+        $totalGrossRevenue = $totalQuery->sum('total_amount');
+        $totalAdminCommission = $totalQuery->sum('admin_commission');
+        
+        if ($withPagination) {
+            $revenues = $paginatedQuery->orderBy('created_at', 'desc')->paginate(10);
+        } else {
+            $revenues = $paginatedQuery->orderBy('created_at', 'desc')->get();
+        }
 
-        return view('pemilik.revenue-report', compact('revenues', 'totalRevenue'));
+        return [
+            'totalRevenue' => $totalRevenue,
+            'revenues' => $revenues,
+            'totalBookings' => $totalBookings,
+            'totalGrossRevenue' => $totalGrossRevenue,
+            'totalAdminCommission' => $totalAdminCommission
+        ];
     }
 
     /**
@@ -521,7 +545,7 @@ class PemilikController extends Controller
     {
         try {
             // Enhanced logging for debugging
-            \Log::info("Activate booking attempt", [
+            Log::info("Activate booking attempt", [
                 'booking_id' => $id,
                 'user_id' => Auth::id(),
                 'timestamp' => now()
@@ -530,7 +554,7 @@ class PemilikController extends Controller
             // Check if booking exists first
             $bookingExists = Booking::find($id);
             if (!$bookingExists) {
-                \Log::warning("Booking not found", ['booking_id' => $id]);
+                Log::warning("Booking not found", ['booking_id' => $id]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Booking tidak ditemukan.'
@@ -543,7 +567,7 @@ class PemilikController extends Controller
             })->find($id);
 
             if (!$booking) {
-                \Log::warning("Authorization failed", [
+                Log::warning("Authorization failed", [
                     'booking_id' => $id,
                     'user_id' => Auth::id(),
                     'motor_owner_id' => $bookingExists->motor->owner_id ?? 'unknown'
@@ -556,7 +580,7 @@ class PemilikController extends Controller
 
             // Check booking status
             if ($booking->status !== 'confirmed') {
-                \Log::info("Invalid status for activation", [
+                Log::info("Invalid status for activation", [
                     'booking_id' => $id,
                     'current_status' => $booking->status,
                     'required_status' => 'confirmed'
@@ -571,14 +595,14 @@ class PemilikController extends Controller
             $updateResult = $booking->update(['status' => 'active']);
             
             if (!$updateResult) {
-                \Log::error("Failed to update booking status", ['booking_id' => $id]);
+                Log::error("Failed to update booking status", ['booking_id' => $id]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Gagal mengupdate status booking. Silakan coba lagi.'
                 ]);
             }
 
-            \Log::info("Booking activated successfully", [
+            Log::info("Booking activated successfully", [
                 'booking_id' => $id,
                 'user_id' => Auth::id()
             ]);
@@ -589,7 +613,7 @@ class PemilikController extends Controller
             ]);
 
         } catch (ModelNotFoundException $e) {
-            \Log::error("Booking not found exception", [
+            Log::error("Booking not found exception", [
                 'booking_id' => $id,
                 'error' => $e->getMessage()
             ]);
@@ -598,7 +622,7 @@ class PemilikController extends Controller
                 'message' => 'Booking tidak ditemukan atau Anda tidak memiliki akses.'
             ]);
         } catch (\Exception $e) {
-            \Log::error("Activate booking exception", [
+            Log::error("Activate booking exception", [
                 'booking_id' => $id,
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
@@ -640,7 +664,7 @@ class PemilikController extends Controller
                     'settled_at' => now()
                 ]);
                 
-                \Log::info('Revenue sharing updated to paid', [
+                Log::info('Revenue sharing updated to paid', [
                     'booking_id' => $booking->id,
                     'revenue_sharing_id' => $revenueSharing->id
                 ]);
@@ -662,7 +686,7 @@ class PemilikController extends Controller
                     'settled_at' => now()
                 ]);
                 
-                \Log::warning('Revenue sharing created at completion (should have been created at payment approval)', [
+                Log::warning('Revenue sharing created at completion (should have been created at payment approval)', [
                     'booking_id' => $booking->id
                 ]);
             }
@@ -677,5 +701,62 @@ class PemilikController extends Controller
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Export revenue report to PDF
+     */
+    public function exportRevenuePdf(Request $request)
+    {
+        // Panggil method revenueReport untuk mendapatkan data yang sama
+        $revenueData = $this->getRevenueData($request);
+        
+        $totalRevenue = $revenueData['totalRevenue'];
+        $revenues = $revenueData['revenues'];
+        $totalBookings = $revenueData['totalBookings'];
+        $totalGrossRevenue = $revenueData['totalGrossRevenue'];
+        $totalAdminCommission = $revenueData['totalAdminCommission'];
+
+        // Get owner info
+        $owner = Auth::user();
+
+        // Generate date range text
+        $dateRange = null;
+        if ($request->month && $request->year) {
+            $dateRange = DateTime::createFromFormat('!m', $request->month)->format('F') . ' ' . $request->year;
+        } elseif ($request->year) {
+            $dateRange = 'Tahun ' . $request->year;
+        } elseif ($request->month) {
+            $dateRange = DateTime::createFromFormat('!m', $request->month)->format('F');
+        } else {
+            $dateRange = 'Semua Periode';
+        }
+
+        // Summary data
+        $summary = [
+            'total_revenue' => $totalRevenue,
+            'total_bookings' => $totalBookings,
+            'total_gross_revenue' => $totalGrossRevenue,
+            'total_admin_commission' => $totalAdminCommission,
+            'owner_percentage' => 70,
+            'admin_percentage' => 30
+        ];
+
+        // Generate PDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pemilik.revenue-report-pdf', compact(
+            'revenues', 
+            'summary', 
+            'owner',
+            'dateRange'
+        ));
+
+        // Set paper size dan orientation
+        $pdf->setPaper('A4', 'portrait');
+
+        // Generate filename
+        $filename = 'Laporan_Pendapatan_' . $owner->name . '_' . date('Y-m-d_H-i-s') . '.pdf';
+
+        // Download PDF
+        return $pdf->download($filename);
     }
 }

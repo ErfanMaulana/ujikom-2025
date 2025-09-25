@@ -15,7 +15,19 @@
         <div class="d-flex align-items-center">
             <i class="bi bi-shield-exclamation me-3" style="font-size: 1.5rem;"></i>
             <div>
-                <h6 class="alert-heading mb-1">Perlu Verifikasi Akun</h6>
+          .catch(error => {
+            console.error('Error fetching motor detail:', error);
+            content.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-exclamation-triangle text-danger fs-1"></i>
+                    <p class="mt-2 text-danger">Gagal memuat detail motor.</p>
+                    <p class="text-muted small">Error: ${error.message}</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="showMotorDetail(${motorId})">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Coba Lagi
+                    </button>
+                </div>
+            `;
+        });  <h6 class="alert-heading mb-1">Perlu Verifikasi Akun</h6>
                 <p class="mb-0">Anda perlu memverifikasi akun terlebih dahulu sebelum dapat mendaftarkan motor baru. Silakan tunggu admin memverifikasi akun Anda.</p>
             </div>
         </div>
@@ -31,6 +43,36 @@
             <div>
                 <h6 class="alert-heading mb-1">Akses Ditolak</h6>
                 <p class="mb-0">{{ $errors->first('verification') }}</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
+
+
+<!-- Success Message -->
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-check-circle me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Berhasil!</h6>
+                <p class="mb-0">{{ session('success') }}</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
+<!-- Error Message -->
+@if($errors->has('error'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Error!</h6>
+                <p class="mb-0">{{ $errors->first('error') }}</p>
             </div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -99,7 +141,7 @@
                         @if($currentStatus === 'pending_verification')
                             <span class="badge bg-warning">Menunggu Verifikasi</span>
                         @elseif($currentStatus === 'rented')
-                            <span class="badge bg-danger text-white" title="Sedang disewa">
+                            <span class="badge bg-warning text-dark" title="Motor sedang disewa">
                                 <i class="bi bi-person-check me-1"></i>Sedang Disewa
                             </span>
                             @if($currentBooking)
@@ -125,9 +167,9 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="motorAction{{ $motor->id }}">
                                 <li>
-                                    <button class="dropdown-item" onclick="showMotorDetail({{ $motor->id }})">
+                                    <a class="dropdown-item" href="{{ route('pemilik.motor.detail', $motor->id) }}">
                                         <i class="bi bi-eye me-2"></i>Lihat Detail
-                                    </button>
+                                    </a>
                                 </li>
                                 @if($isVerified)
                                     <li>
@@ -137,9 +179,15 @@
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
-                                        <button class="dropdown-item text-danger" onclick="deleteMotor({{ $motor->id }}, '{{ $motor->brand }} {{ $motor->plate_number }}')">
-                                            <i class="bi bi-trash me-2"></i>Hapus Motor
-                                        </button>
+                                        <!-- Method 3: Form with confirmation -->
+                                        <form method="POST" action="{{ route('pemilik.motor.delete', $motor->id) }}" 
+                                              onsubmit="return confirm('Apakah Anda yakin ingin menghapus motor {{ $motor->brand }} {{ $motor->plate_number }}?\\n\\nTindakan ini tidak dapat dibatalkan!')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="bi bi-trash me-2"></i>Hapus Motor
+                                            </button>
+                                        </form>
                                     </li>
                                 @else
                                     <li>
@@ -266,35 +314,20 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Konfirmasi Hapus</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Apakah Anda yakin ingin menghapus motor <strong id="motorName"></strong>?</p>
-                <p class="text-muted">Tindakan ini tidak dapat dibatalkan.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <form id="deleteForm" method="POST" style="display: inline;">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Hapus Motor</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <script>
 // Show motor detail in modal
 function showMotorDetail(motorId) {
+    console.log('showMotorDetail called with ID:', motorId);
+    
     const modal = new bootstrap.Modal(document.getElementById('motorDetailModal'));
     const content = document.getElementById('motorDetailContent');
+    
+    if (!modal || !content) {
+        console.error('Modal or content element not found');
+        return;
+    }
     
     // Show loading state
     content.innerHTML = `
@@ -309,10 +342,20 @@ function showMotorDetail(motorId) {
     // Show modal
     modal.show();
     
+    const ajaxUrl = `{{ url('pemilik/motors') }}/${motorId}/ajax`;
+    console.log('Fetching from URL:', ajaxUrl);
+    
     // Fetch motor detail
-    fetch(`{{ url('pemilik/motors') }}/${motorId}/ajax`)
-        .then(response => response.json())
+    fetch(ajaxUrl)
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Motor data received:', data);
             const motor = data.motor;
             const stats = data.stats;
             
@@ -328,7 +371,7 @@ function showMotorDetail(motorId) {
             const statusClass = {
                 'pending_verification': 'warning',
                 'available': 'success',
-                'rented': 'info',
+                'rented': 'warning',
                 'maintenance': 'secondary'
             };
             const statusText = {
@@ -509,28 +552,14 @@ function showMotorDetail(motorId) {
                 <div class="text-center py-4">
                     <i class="bi bi-exclamation-triangle text-danger fs-1"></i>
                     <p class="mt-2 text-danger">Gagal memuat detail motor.</p>
-                    <button class="btn btn-outline-primary btn-sm" onclick="showMotorDetail(\${motorId})">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Coba Lagi
-                    </button>
+                    <a href="{{ url('pemilik/motors') }}/\${motorId}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-eye me-1"></i>Lihat Detail
+                    </a>
                 </div>
             \`;
         });
 }
 
-function deleteMotor(motorId, motorName) {
-    console.log('Delete motor called with ID:', motorId, 'Name:', motorName);
-    
-    const form = document.getElementById('deleteForm');
-    const deleteUrl = `{{ url('pemilik/motors') }}/${motorId}`;
-    
-    console.log('Setting form action to:', deleteUrl);
-    form.action = deleteUrl;
-    
-    // Update motor name in modal
-    document.getElementById('motorName').textContent = motorName;
-    
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    modal.show();
-}
+// No complex JavaScript needed - using simple form submission
 </script>
 @endsection

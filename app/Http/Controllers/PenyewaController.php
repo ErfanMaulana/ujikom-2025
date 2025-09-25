@@ -626,8 +626,9 @@ class PenyewaController extends Controller
         $cancelledBookings = Booking::where('renter_id', $penyewa->id)->where('status', 'cancelled')->count();
         
         // Get recent bookings with motor info
-        $recentBookings = Booking::with(['motor'])
+        $recentBookings = Booking::with(['motor', 'motor.owner'])
             ->where('renter_id', $penyewa->id)
+            ->whereHas('motor') // Only bookings with existing motors
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
@@ -635,6 +636,7 @@ class PenyewaController extends Controller
         // Get user's ratings given
         $ratingsGiven = Rating::with(['motor', 'booking'])
             ->where('user_id', $penyewa->id)
+            ->whereHas('motor') // Only ratings with existing motors
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
@@ -660,29 +662,64 @@ class PenyewaController extends Controller
      */
     public function exportReports(Request $request)
     {
-        $penyewa = Auth::user();
-        $format = $request->get('format', 'pdf'); // pdf or excel
+        $user = Auth::user();
+        $format = $request->get('format', 'pdf');
         
-        $bookings = Booking::with(['motor'])
-            ->where('renter_id', $penyewa->id)
+        // Get user's bookings with motor relationship - fix column name to user_id
+        $bookings = Booking::where('user_id', $user->id)
+            ->whereHas('motor')
+            ->with(['motor.owner', 'payment'])
             ->orderBy('created_at', 'desc')
             ->get();
-
-        $ratings = Rating::with(['motor', 'booking'])
-            ->where('user_id', $penyewa->id)
+        
+        // Get user's ratings
+        $ratings = Rating::where('user_id', $user->id)
+            ->whereHas('motor')
+            ->with(['motor'])
             ->orderBy('created_at', 'desc')
             ->get();
-
-        // For now, just return JSON data
+        
+        $summary = [
+            'total_bookings' => $bookings->count(),
+            'completed_bookings' => $bookings->where('status', 'completed')->count(),
+            'total_spending' => $bookings->whereIn('status', ['completed', 'active'])->sum('price'),
+            'average_rating_given' => $ratings->avg('rating')
+        ];
+        
+        if ($format === 'pdf') {
+            try {
+                $pdf = \PDF::loadView('penyewa.reports-pdf', compact('bookings', 'ratings', 'summary', 'user'));
+                return $pdf->download('laporan-penyewa-' . date('Y-m-d') . '.pdf');
+            } catch (\Exception $e) {
+                // If PDF view doesn't exist, return JSON
+                return response()->json([
+                    'error' => 'PDF template not found',
+                    'message' => 'Fitur PDF akan segera tersedia'
+                ]);
+            }
+        }
+        
+        // For Excel or other formats, return JSON
         return response()->json([
-            'bookings' => $bookings,
-            'ratings' => $ratings,
-            'summary' => [
-                'total_bookings' => $bookings->count(),
-                'completed_bookings' => $bookings->where('status', 'completed')->count(),
-                'total_spending' => $bookings->whereIn('status', ['completed', 'active'])->sum('price'),
-                'average_rating_given' => $ratings->avg('rating')
-            ]
+            'user' => $user->name,
+            'summary' => $summary,
+            'bookings' => $bookings->map(function ($booking) {
+                return [
+                    'tanggal' => $booking->created_at->format('d/m/Y'),
+                    'motor' => $booking->motor ? $booking->motor->name : 'Motor tidak tersedia',
+                    'status' => $booking->status,
+                    'harga' => 'Rp ' . number_format((float)$booking->price, 0, ',', '.')
+                ];
+            }),
+            'ratings' => $ratings->map(function ($rating) {
+                return [
+                    'tanggal' => $rating->created_at->format('d/m/Y'),
+                    'motor' => $rating->motor ? $rating->motor->name : 'Motor tidak tersedia',
+                    'rating' => $rating->rating,
+                    'komentar' => $rating->comment
+                ];
+            })
         ]);
     }
+
 }

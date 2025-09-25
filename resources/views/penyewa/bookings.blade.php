@@ -85,7 +85,7 @@
                                             {{ $days }} hari
                                         </td>
                                         <td>
-                                            <strong>Rp {{ number_format($booking->price, 0, ',', '.') }}</strong>
+                                            <strong>Rp {{ number_format((float)($booking->price ?? 0), 0, ',', '.') }}</strong>
                                         </td>
                                         <td>
                                             @switch($booking->status)

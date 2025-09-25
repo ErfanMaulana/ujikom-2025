@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Motor Edit Form</title>
+</head>
+<body>
+    <h1>Test Motor Edit - Form Method Test</h1>
+    
+    <h3>Route Information:</h3>
+    <ul>
+        <li>Route: PATCH pemilik/motors/{id}</li>
+        <li>Route Name: pemilik.motor.update</li>
+        <li>Method: PATCH (Fixed from PUT)</li>
+    </ul>
+    
+    <h3>Test Form (Without CSRF - FOR TESTING ONLY):</h3>
+    <form action="http://localhost/ujikom-2025-erfan/pemilik/motors/18" method="POST">
+        <input type="hidden" name="_method" value="PATCH">
+        <input type="hidden" name="_token" value="test-token">
+        
+        <label>Brand:</label>
+        <input type="text" name="brand" value="Honda" required><br><br>
+        
+        <label>Model:</label>
+        <input type="text" name="model" value="Vario" required><br><br>
+        
+        <label>Type CC:</label>
+        <select name="type_cc" required>
+            <option value="125cc">125cc</option>
+        </select><br><br>
+        
+        <label>Year:</label>
+        <input type="number" name="year" value="2023" min="2000" max="2024" required><br><br>
+        
+        <label>Color:</label>
+        <input type="text" name="color" value="Merah" required><br><br>
+        
+        <label>Plate Number:</label>
+        <input type="text" name="plate_number" value="B 1234 ABC" required><br><br>
+        
+        <button type="submit">Update Motor</button>
+    </form>
+    
+    <h3>Status Check:</h3>
+    <ul>
+        <li>✅ Route method fixed from PUT to PATCH</li>
+        <li>✅ Form @method directive updated</li>
+        <li>✅ Route name verified: pemilik.motor.update</li>
+        <li>✅ Controller method exists: updateMotor</li>
+        <li>✅ Cache cleared with optimize:clear</li>
+    </ul>
+    
+    <h3>Next Steps:</h3>
+    <p>
+        1. Login as pemilik/owner<br>
+        2. Go to motor list<br>
+        3. Click edit on any motor<br>
+        4. Make changes and submit<br>
+        5. Should redirect to pemilik.motors with success message
+    </p>
+</body>
+</html>

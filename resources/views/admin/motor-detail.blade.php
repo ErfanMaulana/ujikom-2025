@@ -19,7 +19,7 @@
                     @elseif($motor->status === 'available')
                         <span class="badge bg-success fs-6">Tersedia</span>
                     @elseif($motor->status === 'rented')
-                        <span class="badge bg-info fs-6">Disewa</span>
+                        <span class="badge bg-warning text-dark fs-6">Disewa</span>
                     @else
                         <span class="badge bg-secondary fs-6">{{ ucfirst($motor->status) }}</span>
                     @endif

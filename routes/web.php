@@ -7,6 +7,21 @@ use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
+// Debug route for motor edit testing
+Route::get('/debug-motor-edit', function () {
+    return view('debug-motor-edit');
+});
+
+// Test route for motor detail links
+Route::get('/test-motor-links', function () {
+    return view('test-motor-links');
+});
+
+// Test route for delete motor function
+Route::get('/test-delete-motor', function () {
+    return view('test-delete-motor');
+});
+
 Route::get('/', function () {
     // Jika user sudah login, redirect ke dashboard sesuai role
     if (Auth::check()) {
@@ -108,7 +123,7 @@ Route::middleware(['auth', 'role:pemilik'])->prefix('pemilik')->name('pemilik.')
     Route::get('/motors/{id}', [PemilikController::class, 'motorDetail'])->name('motor.detail');
     Route::get('/motors/{id}/ajax', [PemilikController::class, 'getMotorDetailAjax'])->name('motor.detail.ajax');
     Route::get('/motors/{id}/edit', [PemilikController::class, 'editMotor'])->name('motor.edit');
-    Route::patch('/motors/{id}', [PemilikController::class, 'updateMotor'])->name('motor.update');
+    Route::put('/motors/{id}', [PemilikController::class, 'updateMotor'])->name('motor.update');
     Route::delete('/motors/{id}', [PemilikController::class, 'deleteMotor'])->name('motor.delete');
     
     // Booking routes
@@ -123,6 +138,7 @@ Route::middleware(['auth', 'role:pemilik'])->prefix('pemilik')->name('pemilik.')
     // Revenue routes
     Route::get('/revenue-report', [PemilikController::class, 'revenueReport'])->name('revenue.report');
     Route::get('/revenue-download', [PemilikController::class, 'downloadRevenueReport'])->name('revenue.download');
+    Route::get('/revenue-export-pdf', [PemilikController::class, 'exportRevenuePdf'])->name('revenue.export.pdf');
 });
 
 // Routes untuk Admin
@@ -148,6 +164,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     
     // Booking management
     Route::get('/bookings', [AdminController::class, 'bookings'])->name('bookings');
+    Route::get('/bookings/export', [AdminController::class, 'exportBookingsPdf'])->name('bookings.export');
     Route::get('/bookings/{id}', [AdminController::class, 'showBooking'])->name('bookings.show');
     Route::patch('/bookings/{id}/status', [AdminController::class, 'updateBookingStatus'])->name('bookings.status');
     
@@ -160,6 +177,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     // Reports & Revenue Sharing
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/financial-report', [AdminController::class, 'financialReport'])->name('financial-report');
+    Route::get('/financial-report/export-pdf', [AdminController::class, 'exportFinancialReportPDF'])->name('financial-report.export-pdf');
     Route::get('/export-report', [AdminController::class, 'exportReport'])->name('export.report');
     
     // Notifications

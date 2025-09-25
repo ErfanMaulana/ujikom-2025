@@ -34,6 +34,7 @@
         body {
             background-color: var(--fann-light);
             color: var(--fann-dark);
+            padding-top: 76px; /* Space for fixed navbar */
         }
 
         .btn-primary {
@@ -54,9 +55,27 @@
             background-color: var(--fann-primary) !important;
         }
 
+        /* Fixed Navbar Styles */
+        .navbar {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1030;
+            backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.95) !important;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+
         .navbar-brand {
             font-weight: 700;
             color: var(--fann-primary) !important;
+        }
+
+        .navbar-scrolled {
+            background-color: rgba(255, 255, 255, 0.98) !important;
+            box-shadow: 0 2px 30px rgba(0, 0, 0, 0.15);
         }
 
         .feature-card {
@@ -76,6 +95,188 @@
         .category-card:hover {
             border-color: var(--fann-primary);
             transform: translateY(-2px);
+        }
+
+        /* Hero Banner Styles */
+        .hero-banner {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #6366f1 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+            padding-top: 2rem; /* Additional space for fixed navbar */
+        }
+
+        .hero-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" stroke-width="0.5" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+        }
+
+        .min-vh-80 {
+            min-height: 80vh;
+        }
+
+        .text-white-75 {
+            color: rgba(255, 255, 255, 0.85) !important;
+        }
+
+        .stat-item h3 {
+            font-size: 2rem;
+        }
+
+        /* Promo Poster Styles */
+        .promo-poster {
+            position: relative;
+            z-index: 2;
+        }
+
+        .poster-bg {
+            background: white;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            border: 2px solid #ffeaea;
+        }
+
+        .promo-item {
+            transition: all 0.3s ease;
+        }
+
+        .promo-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Motor Category Card Styles */
+        .motor-category-card {
+            margin-bottom: 2rem;
+        }
+        
+        .motor-category-card .card {
+            transition: all 0.4s ease;
+            border-radius: 16px;
+            height: 100%;
+            min-height: 500px;
+        }
+
+        .motor-category-card .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+        }
+
+        .category-badge {
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+
+        .bg-gradient-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .bg-gradient-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .motor-icon {
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .price-section {
+            background: #f8fafc;
+            margin: -1rem -1.5rem -1.5rem -1.5rem;
+            padding: 1.5rem;
+            border-radius: 0 0 16px 16px;
+        }
+
+        /* Footer Styles */
+        .social-links a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .social-links a:hover {
+            background: var(--fann-warning);
+            transform: translateY(-2px);
+        }
+
+        .contact-info a:hover {
+            color: var(--fann-warning) !important;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero-banner {
+                min-height: auto;
+                padding: 60px 0;
+            }
+
+            .display-4 {
+                font-size: 2rem;
+            }
+
+            .stat-item h3 {
+                font-size: 1.5rem;
+            }
+
+            .motor-category-card {
+                margin-bottom: 1.5rem;
+            }
+            
+            .motor-category-card .card {
+                min-height: auto;
+            }
+
+            .motor-category-card .card:hover {
+                transform: translateY(-4px);
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .motor-category-card .card {
+                min-height: 450px;
+            }
+        }
+
+        /* Animation */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-content {
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .promo-poster {
+            animation: fadeInUp 1s ease-out 0.3s both;
         }
     </style>
 </head>
@@ -147,19 +348,82 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-dark text-light py-4 mt-5">
+    <footer class="bg-dark text-light py-5">
         <div class="container">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="bi bi-motorcycle me-2"></i>
-                        <span class="fw-bold">FannRental</span>
+            <div class="row g-4">
+                <div class="col-lg-4 col-md-6">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-motorcycle me-2 text-warning" style="font-size: 1.5rem;"></i>
+                        <span class="fw-bold h4 mb-0">FannRental</span>
                     </div>
-                    <p class="text-muted mb-0">Platform rental motor terpercaya untuk ujikom 2025</p>
+                    <p class="text-light opacity-75 mb-3">
+                        Platform rental motor terpercaya yang menghadirkan solusi transportasi mudah, aman, dan terjangkau untuk kebutuhan mobilitas Anda.
+                    </p>
+                    <div class="social-links">
+                        <a href="#" class="text-light me-3"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="text-light me-3"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="text-light me-3"><i class="bi bi-twitter"></i></a>
+                        <a href="#" class="text-light"><i class="bi bi-whatsapp"></i></a>
+                    </div>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <p class="text-muted mb-0">&copy; 2025 FannRental. Dibuat untuk ujikom SMKN 1 Ciamis.</p>
+                
+                <div class="col-lg-3 col-md-6">
+                    <h5 class="fw-semibold mb-3 text-warning">Layanan</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="text-light opacity-75 text-decoration-none">Rental Motor Harian</a></li>
+                        <li class="mb-2"><a href="#" class="text-light opacity-75 text-decoration-none">Rental Motor Mingguan</a></li>
+                        <li class="mb-2"><a href="#" class="text-light opacity-75 text-decoration-none">Rental Motor Bulanan</a></li>
+                        <li class="mb-2"><a href="#" class="text-light opacity-75 text-decoration-none">Paket Tour Motor</a></li>
+                    </ul>
                 </div>
+                
+                <div class="col-lg-2 col-md-6">
+                    <h5 class="fw-semibold mb-3 text-warning">Bantuan</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="text-light opacity-75 text-decoration-none">FAQ</a></li>
+                        <li class="mb-2"><a href="#" class="text-light opacity-75 text-decoration-none">Cara Booking</a></li>
+                        <li class="mb-2"><a href="#" class="text-light opacity-75 text-decoration-none">Syarat & Ketentuan</a></li>
+                        <li class="mb-2"><a href="#" class="text-light opacity-75 text-decoration-none">Kebijakan Privasi</a></li>
+                    </ul>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <h5 class="fw-semibold mb-3 text-warning">Kontak Saya</h5>
+                    <div class="contact-info">
+                        
+                        <div class="mb-3">
+                            <i class="bi bi-envelope text-warning me-2"></i>
+                            <a href="mailto:erf4nmaulana@gmail.com" class="text-light opacity-75 text-decoration-none">
+                                erf4nmaulana@gmail.com
+                            </a>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <i class="bi bi-telephone text-warning me-2"></i>
+                            <a href="tel:+6283820921722" class="text-light opacity-75 text-decoration-none">
+                                +62 838-2092-1722
+                            </a>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <i class="bi bi-whatsapp text-warning me-2"></i>
+                            <a href="https://wa.me/6283820921722" target="_blank" class="text-light opacity-75 text-decoration-none">
+                                WhatsApp
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <hr class="my-4 opacity-25">
+            
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="text-light opacity-75 mb-0">
+                        &copy; Project by: Erfan Eka Maulana
+                    </p>
+                </div>
+                
             </div>
         </div>
     </footer>

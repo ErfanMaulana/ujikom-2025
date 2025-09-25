@@ -29,6 +29,7 @@
                 <form id="editMotorForm" action="{{ route('pemilik.motor.update', $motor->id) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
+                    <!-- Force view recompile -->
                     
                     <div class="row">
                         <!-- Merek -->
@@ -178,7 +179,7 @@
                         <a href="{{ route('pemilik.motors') }}" class="btn btn-secondary">
                             <i class="bi bi-arrow-left me-2"></i>Batal
                         </a>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="button" class="btn btn-primary" onclick="submitFormWithPatch()">
                             <i class="bi bi-check-lg me-2"></i>Update Motor
                         </button>
                     </div>
@@ -239,5 +240,30 @@ document.addEventListener('DOMContentLoaded', function() {
         documentInput.parentNode.appendChild(previewImg);
     }
 });
+
+// Force PATCH method submission
+function submitFormWithPatch() {
+    const form = document.getElementById('editMotorForm');
+    const methodInput = form.querySelector('input[name="_method"]');
+    
+    // Force set PUT method
+    if (methodInput) {
+        methodInput.value = 'PUT';
+    } else {
+        // Create method input if not exists
+        const newMethodInput = document.createElement('input');
+        newMethodInput.type = 'hidden';
+        newMethodInput.name = '_method';
+        newMethodInput.value = 'PUT';
+        form.appendChild(newMethodInput);
+    }
+    
+    console.log('Form Action:', form.action);
+    console.log('Form Method:', form.method);
+    console.log('Hidden Method:', methodInput ? methodInput.value : 'Not found');
+    
+    // Submit form
+    form.submit();
+}
 </script>
 @endpush

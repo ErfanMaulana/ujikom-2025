@@ -5,7 +5,9 @@
 @section('content')
 <!-- Content Header -->
 <div class="content-header">
-    <h1>Laporan Keuangan</h1>
+    <h1>
+        <i class="bi bi-graph-up me-3"></i>Laporan Keuangan
+    </h1>
     <p>Analisis pendapatan dan revenue sharing sistem rental</p>
 </div>
 
@@ -18,9 +20,12 @@
                         <i class="bi bi-graph-up me-2"></i>Laporan Keuangan
                     </h5>
                     <div>
-                        <button class="btn btn-success me-2" onclick="exportReport()">
+                        <a href="{{ route('admin.financial-report.export-pdf', request()->query()) }}" 
+                           class="btn btn-success me-2" 
+                           target="_blank"
+                           onclick="showExportMessage()">
                             <i class="bi bi-download"></i> Export Laporan
-                        </button>
+                        </a>
                         <button class="btn btn-info" onclick="printReport()">
                             <i class="bi bi-printer"></i> Print
                         </button>
@@ -141,16 +146,18 @@
                             </div>
                             <div class="card-body">
                                 @forelse($topMotors ?? [] as $motor)
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div>
-                                        <strong>{{ $motor->motor->brand ?? 'N/A' }} {{ $motor->motor->model ?? 'N/A' }}</strong><br>
-                                        <small class="text-muted">{{ $motor->motor->license_plate ?? 'N/A' }}</small>
+                                    @if($motor && isset($motor['motor']))
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <strong>{{ isset($motor['motor']->brand) ? $motor['motor']->brand : 'N/A' }} {{ isset($motor['motor']->model) ? $motor['motor']->model : 'N/A' }}</strong><br>
+                                            <small class="text-muted">{{ isset($motor['motor']->plate_number) ? $motor['motor']->plate_number : 'N/A' }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-primary">{{ $motor['booking_count'] ?? 0 }} sewa</span><br>
+                                            <small>Rp {{ number_format($motor['total_revenue'] ?? 0, 0, ',', '.') }}</small>
+                                        </div>
                                     </div>
-                                    <div class="text-end">
-                                        <span class="badge bg-primary">{{ $motor->booking_count }} sewa</span><br>
-                                        <small>Rp {{ number_format($motor->total_revenue, 0, ',', '.') }}</small>
-                                    </div>
-                                </div>
+                                    @endif
                                 @empty
                                 <div class="text-center text-muted">
                                     <i class="bi bi-trophy fs-3"></i>
@@ -186,44 +193,42 @@
                                 <tbody>
                                     @forelse($transactions ?? [] as $transaction)
                                     <tr>
-                                        <td>{{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y') }}</td>
+                                        <td>{{ optional($transaction->created_at)->format('d/m/Y') ?? 'N/A' }}</td>
                                         <td>
-                                            <strong>#BK{{ str_pad($transaction->id, 4, '0', STR_PAD_LEFT) }}</strong>
+                                            <strong>#BK{{ str_pad($transaction->booking_id ?? 0, 4, '0', STR_PAD_LEFT) }}</strong>
                                         </td>
                                         <td>
-                                            {{ $transaction->renter->name }}<br>
-                                            <small class="text-muted">{{ $transaction->renter->phone ?? 'N/A' }}</small>
+                                            {{ optional(optional($transaction->booking)->renter)->name ?? 'N/A' }}<br>
+                                            <small class="text-muted">{{ optional(optional($transaction->booking)->renter)->phone ?? 'N/A' }}</small>
                                         </td>
                                         <td>
-                                            {{ $transaction->motor->brand }} {{ $transaction->motor->model }}<br>
-                                            <small class="text-muted">{{ $transaction->motor->license_plate }}</small>
+                                            {{ optional(optional($transaction->booking)->motor)->brand ?? 'N/A' }} {{ optional(optional($transaction->booking)->motor)->model ?? '' }}<br>
+                                            <small class="text-muted">{{ optional(optional($transaction->booking)->motor)->license_plate ?? 'N/A' }}</small>
                                         </td>
                                         <td>
-                                            {{ $transaction->motor->owner->name }}<br>
-                                            <small class="text-muted">{{ $transaction->motor->owner->phone ?? 'N/A' }}</small>
+                                            {{ optional($transaction->owner)->name ?? 'N/A' }}<br>
+                                            <small class="text-muted">{{ optional($transaction->owner)->phone ?? 'N/A' }}</small>
                                         </td>
                                         <td>
-                                            <strong>Rp {{ number_format($transaction->price, 0, ',', '.') }}</strong>
+                                            <strong>Rp {{ number_format($transaction->total_amount ?? 0, 0, ',', '.') }}</strong>
                                         </td>
                                         <td>
                                             <span class="text-success">
-                                                Rp {{ number_format($transaction->price * 0.3, 0, ',', '.') }}
+                                                Rp {{ number_format($transaction->admin_commission ?? 0, 0, ',', '.') }}
                                             </span>
                                         </td>
                                         <td>
                                             <span class="text-primary">
-                                                Rp {{ number_format($transaction->price * 0.7, 0, ',', '.') }}
+                                                Rp {{ number_format($transaction->owner_amount ?? 0, 0, ',', '.') }}
                                             </span>
                                         </td>
                                         <td>
                                             <span class="badge 
-                                                @if($transaction->status == 'completed') bg-success
-                                                @elseif($transaction->status == 'active') bg-info
-                                                @elseif($transaction->status == 'confirmed') bg-primary
-                                                @elseif($transaction->status == 'pending') bg-warning
-                                                @else bg-danger
+                                                @if(($transaction->status ?? '') == 'paid') bg-success
+                                                @elseif(($transaction->status ?? '') == 'pending') bg-warning
+                                                @else bg-secondary
                                                 @endif">
-                                                {{ ucfirst($transaction->status) }}
+                                                {{ ucfirst($transaction->status ?? 'unknown') }}
                                             </span>
                                         </td>
                                     </tr>
@@ -268,31 +273,29 @@
                                 </thead>
                                 <tbody>
                                     @forelse($ownerSummary ?? [] as $ownerData)
+                                    @if($ownerData && is_object($ownerData))
                                     <tr>
                                         <td>
-                                            <strong>{{ $ownerData->owner->name }}</strong><br>
-                                            <small class="text-muted">{{ $ownerData->owner->phone ?? 'N/A' }}</small>
+                                            <strong>{{ $ownerData->owner ? $ownerData->owner->name : 'N/A' }}</strong><br>
+                                            <small class="text-muted">{{ $ownerData->owner ? $ownerData->owner->phone : 'N/A' }}</small>
                                         </td>
                                         <td>
-                                            <span class="badge bg-secondary">{{ $ownerData->owner->ownedMotors->count() ?? 0 }}</span>
+                                            <span class="badge bg-secondary">{{ $ownerData->motor_count ?? 0 }}</span>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info">{{ $ownerData->transaction_count }}</span>
+                                            <span class="badge bg-info">{{ $ownerData->transaction_count ?? 0 }}</span>
                                         </td>
                                         <td>
-                                            <strong>Rp {{ number_format($ownerData->total_revenue, 0, ',', '.') }}</strong>
+                                            <strong>Rp {{ number_format($ownerData->total_revenue ?? 0, 0, ',', '.') }}</strong>
                                         </td>
                                         <td>
-                                            <span class="text-primary">
-                                                Rp {{ number_format($ownerData->owner_earned, 0, ',', '.') }}
-                                            </span>
+                                            <span class="text-primary">Rp {{ number_format($ownerData->owner_earned ?? 0, 0, ',', '.') }}</span>
                                         </td>
                                         <td>
-                                            <span class="text-success">
-                                                Rp {{ number_format($ownerData->admin_earned, 0, ',', '.') }}
-                                            </span>
+                                            <span class="text-success">Rp {{ number_format($ownerData->admin_earned ?? 0, 0, ',', '.') }}</span>
                                         </td>
                                     </tr>
+                                    @endif
                                     @empty
                                     <tr>
                                         <td colspan="6" class="text-center text-muted py-4">
@@ -406,13 +409,29 @@ document.addEventListener('DOMContentLoaded', function() {
     @endif
 });
 
-function exportReport() {
-    const params = new URLSearchParams(window.location.search);
-    window.open(`/admin/reports/export?${params.toString()}`, '_blank');
-}
-
 function printReport() {
     window.print();
+}
+
+function showExportMessage() {
+    // Show loading message
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    Toast.fire({
+        icon: 'info',
+        title: 'PDF sedang dipersiapkan...',
+        text: 'Mohon tunggu, file PDF akan diunduh secara otomatis'
+    });
 }
 </script>
 @endpush

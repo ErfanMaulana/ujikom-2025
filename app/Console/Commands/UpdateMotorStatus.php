@@ -41,12 +41,12 @@ class UpdateMotorStatus extends Command
         // 1. Update motor yang harus berstatus 'rented' (ada booking aktif hari ini)
         $motorsToRent = Motor::where('status', '!=', 'rented')
             ->whereHas('bookings', function($query) use ($today) {
-                $query->where('status', 'confirmed')
+                $query->where('status', 'active')
                       ->where('start_date', '<=', $today)
                       ->where('end_date', '>=', $today);
             })
             ->with(['bookings' => function($query) use ($today) {
-                $query->where('status', 'confirmed')
+                $query->where('status', 'active')
                       ->where('start_date', '<=', $today)
                       ->where('end_date', '>=', $today);
             }])
@@ -66,7 +66,7 @@ class UpdateMotorStatus extends Command
         // 2. Update motor yang harus kembali ke 'available' (tidak ada booking aktif hari ini)
         $motorsToAvailable = Motor::where('status', 'rented')
             ->whereDoesntHave('bookings', function($query) use ($today) {
-                $query->where('status', 'confirmed')
+                $query->where('status', 'active')
                       ->where('start_date', '<=', $today)
                       ->where('end_date', '>=', $today);
             })

@@ -52,7 +52,7 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
             padding: 0;
             width: 100%;
-            max-width: 900px;
+            max-width: 1100px;
             margin: 20px;
             overflow: hidden;
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -61,7 +61,7 @@
         .auth-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            min-height: 600px;
+            min-height: 550px;
         }
         
         .auth-left {
